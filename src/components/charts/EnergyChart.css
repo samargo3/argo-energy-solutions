@@ -1,0 +1,11 @@
+.energy-chart {
+  width: 100%;
+}
+
+.chart-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+  color: var(--text-dark);
+}
+
