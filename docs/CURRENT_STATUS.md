@@ -170,11 +170,11 @@ npm run check:daily                     # Daily status check
 
 ```bash
 # Run analysis script with custom parameters
-node scripts/wilson-center-analysis.js [daterange] [resolution]
+node backend/scripts/analysis/wilson-center-analysis.js [daterange] [resolution]
 
 # Examples:
-node scripts/wilson-center-analysis.js today 900
-node scripts/wilson-center-analysis.js ['2025-05-01', '2025-05-07'] 3600
+node backend/scripts/analysis/wilson-center-analysis.js today 900
+node backend/scripts/analysis/wilson-center-analysis.js ['2025-05-01', '2025-05-07'] 3600
 ```
 
 ---

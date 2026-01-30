@@ -13,7 +13,7 @@ This guide provides multiple methods to import Wilson Center energy data into Ta
 This script converts your JSON analysis data to Tableau-friendly CSV format.
 
 ```javascript
-// scripts/export-to-csv.js
+// backend/scripts/utilities/export-to-csv.js
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -142,10 +142,10 @@ exportToCSV(analysisFile, outputName);
 
 ```bash
 # Export latest Wilson Center analysis
-node scripts/export-to-csv.js wilson-center-analysis.json wilson-center
+node backend/scripts/utilities/export-to-csv.js wilson-center-analysis.json wilson-center
 
 # Or combine analysis + export
-npm run analyze:wilson thismonth 3600 && node scripts/export-to-csv.js
+npm run analyze:wilson thismonth 3600 && node backend/scripts/utilities/export-to-csv.js
 ```
 
 ### Step 3: Import to Tableau
@@ -182,7 +182,7 @@ Tableau can read JSON directly with some setup.
 Create a simplified JSON format:
 
 ```javascript
-// scripts/export-tableau-json.js
+// backend/scripts/utilities/export-tableau-json.js
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -330,7 +330,7 @@ CREATE INDEX idx_readings_channel ON energy_readings(channel_id);
 ### Step 2: Database Export Script
 
 ```javascript
-// scripts/export-to-database.js
+// backend/scripts/utilities/export-to-database.js
 import pg from 'pg';
 import fs from 'fs';
 import path from 'path';
@@ -485,7 +485,7 @@ DB_PASSWORD=your_password
 
 ```bash
 # Cron job (runs daily at 6 AM)
-0 6 * * * cd /path/to/project && npm run analyze:wilson yesterday 900 && node scripts/export-to-database.js
+0 6 * * * cd /path/to/project && npm run analyze:wilson yesterday 900 && node backend/scripts/utilities/export-to-database.js
 ```
 
 **Advantages:**
@@ -504,7 +504,7 @@ Create a custom Tableau Web Data Connector that fetches data directly from your 
 ### Step 1: Create WDC Server
 
 ```javascript
-// scripts/tableau-wdc-server.js
+// backend/scripts/utilities/tableau-wdc-server.js
 import express from 'express';
 import cors from 'cors';
 import fs from 'fs';
@@ -618,7 +618,7 @@ app.listen(PORT, () => {
 
 ```bash
 # Start WDC server
-node scripts/tableau-wdc-server.js
+node backend/scripts/utilities/tableau-wdc-server.js
 ```
 
 **In Tableau Desktop:**
@@ -691,7 +691,7 @@ node scripts/tableau-wdc-server.js
 
 1. **Generate CSV** (easiest):
 ```bash
-node scripts/export-to-csv.js
+node backend/scripts/utilities/export-to-csv.js
 ```
 
 2. **Open Tableau Desktop**

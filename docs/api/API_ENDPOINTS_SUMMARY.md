@@ -9,7 +9,7 @@ Your API integration is now configured to work with **Eniscope meters** used at 
 ## 📡 Endpoint Patterns Configured
 
 ### Python Scripts
-Location: `/python_reports/fetch_bestenergy_data.py`
+Location: `/backend/python_reports/scripts/fetch_bestenergy_data.py`
 
 ```python
 # Endpoint Priority Order (tries each until success):
@@ -289,6 +289,6 @@ This ensures compatibility across different Eniscope/Best.Energy API versions.
 
 **Documentation:**
 - Full guide: `API_CONFIGURATION.md`
-- Quick start: `python_reports/QUICK_START.md`
+- Quick start: `backend/python_reports/QUICK_START.md`
 - Portal data: `HOW_TO_ACCESS_PORTAL_DATA.md`
 

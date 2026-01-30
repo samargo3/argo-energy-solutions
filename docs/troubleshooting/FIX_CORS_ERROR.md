@@ -95,7 +95,7 @@ VITE_API_SERVER_URL=http://localhost:3002
 
 ## What Changed
 
-1. **`server/api-server.js`** - Added Eniscope API proxy endpoints:
+1. **`backend/server/api-server.js`** - Added Eniscope API proxy endpoints:
    - `/api/eniscope/readings/:channelId` - Get channel readings
    - `/api/eniscope/channels` - Get channels
    - `/api/eniscope/devices` - Get devices

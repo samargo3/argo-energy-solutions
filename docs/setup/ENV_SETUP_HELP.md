@@ -114,4 +114,4 @@ If you see all ✓ marks, you're good to go! 🎉
 
 ---
 
-**Need help?** Check which variable names your other working scripts use. Look at `scripts/wilson-center-analysis.js` or `scripts/analyze-energy-data.js` to see what they expect.
+**Need help?** Check which variable names your other working scripts use. Look at `backend/scripts/analysis/wilson-center-analysis.js` or `backend/scripts/analysis/analyze-energy-data.js` to see what they expect.

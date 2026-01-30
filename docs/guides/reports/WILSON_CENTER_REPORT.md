@@ -401,7 +401,7 @@ Analysis scripts generate:
 
 ## Contact & Support
 
-**Analysis Scripts:** `/scripts/wilson-center-analysis.js`  
+**Analysis Scripts:** `/backend/scripts/analysis/wilson-center-analysis.js`  
 **Documentation:** `DATA_COLLECTION_SUMMARY.md`, `API_RATE_LIMITS.md`  
 **API Documentation:** `Core_API_v1.txt`  
 

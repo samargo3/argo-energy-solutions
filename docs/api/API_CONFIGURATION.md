@@ -33,7 +33,7 @@ From your `wilson-center-analysis.json`, we can see you're using **Eniscope mete
 
 ### API Endpoints Configured
 
-#### Python Scripts (`python_reports/fetch_bestenergy_data.py`)
+#### Python Scripts (`backend/python_reports/scripts/fetch_bestenergy_data.py`)
 
 ```python
 # Primary endpoints tried (in order):
@@ -202,8 +202,8 @@ python fetch_bestenergy_data.py \
 ## 📖 Additional Resources
 
 - **Portal Data Guide:** See `HOW_TO_ACCESS_PORTAL_DATA.md`
-- **VEM Report Guide:** See `python_reports/README.md`
-- **Quick Start:** See `python_reports/QUICK_START.md`
+- **VEM Report Guide:** See `backend/python_reports/README.md`
+- **Quick Start:** See `backend/python_reports/QUICK_START.md`
 - **Ingress Setup:** See `Generic_ingress_instructions.txt`
 
 ## 🎯 Next Steps
@@ -216,6 +216,6 @@ python fetch_bestenergy_data.py \
 ---
 
 **Questions?** Check the documentation files or inspect the configured code:
-- Python: `/python_reports/fetch_bestenergy_data.py`
+- Python: `/backend/python_reports/scripts/fetch_bestenergy_data.py`
 - React: `/src/services/api/bestEnergyApi.ts`
 

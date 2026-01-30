@@ -6,7 +6,7 @@ You now have a complete SQLite-based data pipeline ready to use. Here's everythi
 
 ### ✅ Core Components
 
-1. **Data Ingestion Script** (`scripts/ingest-eniscope-data.js`)
+1. **Data Ingestion Script** (`backend/scripts/data-collection/ingest-eniscope-data.js`)
    - Pulls data from Eniscope API
    - Stores in SQLite database
    - Supports full and incremental ingestion
@@ -22,7 +22,7 @@ You now have a complete SQLite-based data pipeline ready to use. Here's everythi
    - Integrated with React Query
    - Automatic caching and refetching
 
-4. **Database Check Script** (`scripts/check-database.js`)
+4. **Database Check Script** (`backend/scripts/database/check-database.js`)
    - Verify database status
    - View statistics
    - Check data freshness

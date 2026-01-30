@@ -1187,17 +1187,17 @@ def compare_equipment_options(current_equipment, options):
 **Low-hanging fruit with immediate value:**
 
 1. ✅ **Anomaly Detection** 
-   - Script: `scripts/detect-anomalies.js`
+   - Script: `backend/scripts/analysis/detect-anomalies.js`
    - Alerts for unusual patterns
    - Weekly email reports
 
 2. ✅ **Power Quality Dashboard**
-   - Script: `scripts/power-quality-analysis.js`
+   - Script: `backend/scripts/analysis/power-quality-analysis.js`
    - PF tracking and alerts
    - Identify correction opportunities
 
 3. ✅ **After-Hours Detection**
-   - Script: `scripts/after-hours-waste.js`
+   - Script: `backend/scripts/analysis/after-hours-waste.js`
    - Find equipment running unnecessarily
    - Quantify savings opportunities
 

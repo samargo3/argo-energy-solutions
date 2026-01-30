@@ -45,7 +45,7 @@ const energyValues = readingList.map(r => r.E).filter(v => v != null && !isNaN(v
 const powerValues = readingList.map(r => r.P || r.kW).filter(v => v != null && !isNaN(v)).map(v => v / 1000);
 ```
 
-**Location:** `scripts/wilson-center-analysis.js`, lines 179-180
+**Location:** `backend/scripts/analysis/wilson-center-analysis.js`, lines 179-180
 
 ---
 
@@ -81,7 +81,7 @@ summary.avgPower = powerAnalyses.reduce((sum, a) => sum + a.power.avg, 0) / powe
 summary.avgPower = powerAnalyses.reduce((sum, a) => sum + a.power.avg, 0);
 ```
 
-**Location:** `scripts/wilson-center-analysis.js`, line 453
+**Location:** `backend/scripts/analysis/wilson-center-analysis.js`, line 453
 
 ---
 
@@ -160,7 +160,7 @@ Before fix would have shown:
 
 ## Files Modified
 
-1. **`scripts/wilson-center-analysis.js`**
+1. **`backend/scripts/analysis/wilson-center-analysis.js`**
    - Line 179: Added `/1000` to convert Wh → kWh
    - Line 180: Added `/1000` to convert W → kW
    - Line 453: Removed `/ powerAnalyses.length` from average calculation

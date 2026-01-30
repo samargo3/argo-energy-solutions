@@ -52,34 +52,93 @@ A React-based dashboard application for connecting to Best.Energy API, performin
 ## Project Structure
 
 ```
-src/
-├── components/       # Reusable components
-│   ├── charts/      # Chart components
-│   ├── common/      # Common UI components
-│   └── layout/      # Layout components
-├── hooks/           # Custom React hooks
-├── pages/           # Page components
-├── services/        # API and business logic
-│   ├── api/         # API client and services
-│   └── analytics/   # Statistical analysis
-├── types/           # TypeScript type definitions
-└── utils/           # Utility functions
+argo-energy-solutions/
+├── docs/                          # 📚 Documentation
+│   ├── setup/                     # Setup & configuration guides
+│   ├── api/                       # API documentation
+│   ├── guides/                    # Feature-specific guides
+│   │   ├── data/                  # Data collection & access
+│   │   ├── reports/               # Report generation
+│   │   └── integrations/          # Third-party integrations
+│   ├── troubleshooting/           # Fixes & solutions
+│   └── reference/                 # Reference materials (PDFs)
+├── backend/                       # 🖥️ Backend services
+│   ├── server/                    # Node.js API server
+│   ├── scripts/                   # Data & analysis scripts
+│   │   ├── analysis/              # Energy data analysis
+│   │   ├── data-collection/       # Data fetching & ingestion
+│   │   ├── database/              # Database management
+│   │   ├── diagnostics/           # Diagnostic tools
+│   │   ├── reports/               # Report generation
+│   │   └── utilities/             # Utility scripts
+│   └── python_reports/            # Python analytics
+│       ├── scripts/               # Python report scripts
+│       ├── reports/               # Generated reports & charts
+│       └── data/                  # CSV data files
+├── src/                           # ⚛️ Frontend (React/TypeScript)
+│   ├── components/                # Reusable components
+│   │   ├── charts/                # Chart components
+│   │   ├── common/                # Common UI components
+│   │   └── layout/                # Layout components
+│   ├── hooks/                     # Custom React hooks
+│   ├── pages/                     # Page components
+│   ├── services/                  # API and business logic
+│   │   ├── api/                   # API client and services
+│   │   └── analytics/             # Statistical analysis
+│   ├── types/                     # TypeScript type definitions
+│   └── utils/                     # Utility functions
+├── public/                        # 📁 Public assets
+├── .env.example                   # Environment variables template
+├── package.json                   # Dependencies & scripts
+└── README.md                      # This file
 ```
+
+## Documentation
+
+Comprehensive documentation is available in the `docs/` directory:
+
+- **Setup Guides**: `docs/setup/` - Installation and configuration
+- **API Documentation**: `docs/api/` - API endpoints and configuration
+- **Data Guides**: `docs/guides/data/` - Data collection and access
+- **Report Guides**: `docs/guides/reports/` - Report generation
+- **Integration Guides**: `docs/guides/integrations/` - Salesforce, Tableau, etc.
+- **Troubleshooting**: `docs/troubleshooting/` - Common issues and fixes
+
+Quick reference documents:
+- `docs/CURRENT_STATUS.md` - Current project status
+- `docs/NEXT_STEPS.md` - Planned features and roadmap
+- `docs/QUICK_REFERENCE.md` - Quick command reference
 
 ## API Integration
 
-The application is configured to connect to the Best.Energy API. Review the `Core API v1.pdf` documentation for API endpoint specifications.
+The application is configured to connect to the Best.Energy API. Review `docs/reference/Core_API_v1.pdf` for complete API specifications.
 
-### Current API Endpoints (Placeholders)
+### Available Scripts
 
-- `GET /customers` - Get all customers
-- `GET /customers/:id` - Get customer by ID
-- `GET /customers/:id/consumption` - Get customer energy consumption
-- `GET /customers/:id/consumption/grouped` - Get grouped consumption data
-- `GET /sites/:id` - Get site information
-- `GET /sites/:id/consumption` - Get site energy consumption
+```bash
+# Data Collection & Analysis
+npm run analyze:energy      # Analyze energy data
+npm run explore:channels    # Explore available channels
+npm run analyze:wilson      # Wilson Center specific analysis
+npm run diagnose:data       # Diagnostic data access tests
+npm run export:csv          # Export data to CSV
 
-**Note:** These endpoints are placeholders. Update them in `src/services/api/bestEnergyApi.ts` based on the actual Best.Energy API documentation.
+# Data Ingestion
+npm run ingest:data         # Ingest Eniscope data
+npm run ingest:full         # Full data ingestion
+npm run ingest:incremental  # Incremental ingestion
+
+# Database & Health
+npm run db:check            # Check database status
+npm run unit:health         # Unit health report
+npm run check:daily         # Daily data check
+
+# Development
+npm run dev                 # Start frontend dev server
+npm run api:server          # Start backend API server
+npm run dev:all             # Start both frontend and backend
+npm start                   # Alias for dev:all
+```
 
 ## Features in Development
 
@@ -111,10 +170,12 @@ The built files will be in the `dist` directory.
 
 ## Contributing
 
-1. Review the `NEXT_STEPS.md` file for planned features
+1. Review `docs/NEXT_STEPS.md` for planned features
 2. Follow TypeScript best practices
 3. Ensure all components are typed
 4. Test API integration with mock data if needed
+5. Backend scripts go in `backend/scripts/` (categorized by function)
+6. Documentation goes in `docs/` (organized by topic)
 
 ## License
 

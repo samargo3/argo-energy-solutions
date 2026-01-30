@@ -5,9 +5,9 @@
 All code and configuration files have been created and verified:
 
 ### ✅ Files Created
-- ✅ `scripts/ingest-eniscope-data.js` - Data ingestion script (syntax verified)
-- ✅ `scripts/check-database.js` - Database status checker (syntax verified)
-- ✅ `server/api-server.js` - Express API server (syntax verified)
+- ✅ `backend/scripts/data-collection/ingest-eniscope-data.js` - Data ingestion script (syntax verified)
+- ✅ `backend/scripts/database/check-database.js` - Database status checker (syntax verified)
+- ✅ `backend/server/api-server.js` - Express API server (syntax verified)
 - ✅ `src/services/data/queryService.ts` - Database query service
 - ✅ `src/services/api/storedDataApi.ts` - API client for React
 - ✅ `src/hooks/useStoredEnergyData.ts` - React hooks
