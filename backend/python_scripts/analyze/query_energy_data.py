@@ -13,12 +13,17 @@ Usage:
 import os
 import sys
 import psycopg2
+from pathlib import Path
 from psycopg2.extras import RealDictCursor
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
 import pytz
 
-load_dotenv()
+_PKG_ROOT = Path(__file__).resolve().parent.parent
+_PROJECT_ROOT = _PKG_ROOT.parent.parent
+if str(_PKG_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PKG_ROOT))
+load_dotenv(_PROJECT_ROOT / '.env')
 
 
 class EnergyDataQuery:

@@ -12,10 +12,13 @@ Usage:
 
 import os
 import sys
+from pathlib import Path
 from typing import List, Optional
 
-# Allow running from project root or backend/python_scripts
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+_PKG_ROOT = Path(__file__).resolve().parent.parent
+_PROJECT_ROOT = _PKG_ROOT.parent.parent
+if str(_PKG_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PKG_ROOT))
 
 try:
     import psycopg2
@@ -24,10 +27,9 @@ except ImportError:
 
 try:
     from dotenv import load_dotenv
+    load_dotenv(_PROJECT_ROOT / '.env')
 except ImportError:
-    load_dotenv = lambda: None
-
-load_dotenv()
+    pass
 
 
 # Materialized views that support CONCURRENTLY (must have a UNIQUE index)

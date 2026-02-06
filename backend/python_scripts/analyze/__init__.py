@@ -1,5 +1,5 @@
 """
-Analytics modules for energy data analysis
+Analytics modules for energy data analysis (sensor health, after-hours waste, anomalies, spikes, quick wins)
 """
 
 from .anomaly_detection import (

@@ -22,33 +22,33 @@ import os
 import sys
 import json
 import argparse
+from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any, List
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from dotenv import load_dotenv
 
-# Add parent directory to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+_PKG_ROOT = Path(__file__).resolve().parent.parent
+_PROJECT_ROOT = _PKG_ROOT.parent.parent
+if str(_PKG_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PKG_ROOT))
+load_dotenv(_PROJECT_ROOT / '.env')
 
-# Import modules
-from backend.python_scripts.lib import (
+from lib import (
     get_last_complete_week,
     get_baseline_period,
     format_date_range,
     to_unix_timestamp,
 )
-from backend.python_scripts.config import DEFAULT_CONFIG, merge_config
-from backend.python_scripts.analytics import (
+from config import DEFAULT_CONFIG, merge_config
+from analyze import (
     analyze_sensor_health_for_site,
     analyze_after_hours_waste,
     analyze_anomalies,
     analyze_spikes,
     generate_quick_wins,
 )
-
-# Load environment variables
-load_dotenv()
 
 
 class DatabaseDataFetcher:

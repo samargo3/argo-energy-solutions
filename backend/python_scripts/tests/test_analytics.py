@@ -12,15 +12,19 @@ Usage:
 import os
 import sys
 import json
+from pathlib import Path
 from datetime import datetime, timedelta
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from dotenv import load_dotenv
 
-# Add parent directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+_PKG_ROOT = Path(__file__).resolve().parent.parent
+_PROJECT_ROOT = _PKG_ROOT.parent.parent
+if str(_PKG_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PKG_ROOT))
+load_dotenv(_PROJECT_ROOT / '.env')
 
-from backend.python_scripts.lib import (
+from lib import (
     calculate_stats,
     percentile,
     calculate_iqr,
@@ -28,16 +32,14 @@ from backend.python_scripts.lib import (
     get_baseline_period,
     parse_timestamp,
 )
-from backend.python_scripts.config import DEFAULT_CONFIG
-from backend.python_scripts.analytics import (
+from config import DEFAULT_CONFIG
+from analyze import (
     analyze_sensor_health_for_site,
     analyze_after_hours_waste,
     analyze_anomalies,
     analyze_spikes,
     generate_quick_wins,
 )
-
-load_dotenv()
 
 
 class AnalyticsTestSuite:

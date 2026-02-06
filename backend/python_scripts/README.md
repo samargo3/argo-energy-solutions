@@ -1,3 +1,62 @@
+# 📜 Argo Energy Data Governance Manifesto
+
+> **AI_CONTEXT:** This project follows a strict 4-stage Data Journey architecture. All Python scripts must be located in one of the four stage folders (ingest, govern, analyze, deliver). Do not create scripts in the root directory. Use absolute package imports (e.g., `from lib import ...`) and derive paths using `_PROJECT_ROOT`.
+
+---
+
+## 1. The Core Philosophy
+The Argo Energy codebase is organized by the **Data Journey Stage**. This ensures separation of concerns, simplifies debugging, and enforces data integrity. No script should span more than two stages of the journey.
+
+---
+
+## 2. The Four-Stage Architecture
+
+### 📥 STAGE 1: Ingest (`/ingest`)
+* **Purpose:** The only entry point for raw data from external APIs (Eniscope).
+* **Ownership:** Owns the relationship with the API, rate-limiting, and raw normalization (e.g., Wh to kWh).
+* **Rules:** 
+  * Must use the `ON CONFLICT DO NOTHING` pattern to prevent duplicates.
+  * Must log every attempt to `ingestion_logs`.
+  * Should not contain business logic or complex analytics.
+
+### 🛡️ STAGE 2: Govern (`/govern`)
+* **Purpose:** The "Truth Layer." Manages the database schema, views, and data quality.
+* **Ownership:** Owns the `public` schema, materialized view refreshes, and validation checks.
+* **Rules:**
+  * Must be run after every Ingest cycle to ensure Materialized Views are fresh.
+  * Validation scripts act as "Circuit Breakers"—if validation fails, downstream reports are blocked.
+
+### 🧠 STAGE 3: Analyze (`/analyze`)
+* **Purpose:** Pure business logic and mathematical models.
+* **Ownership:** Owns anomaly detection, sensor health logic, and energy waste algorithms.
+* **Rules:**
+  * **Read-Only:** Analyze scripts must NEVER `INSERT` or `UPDATE` core reading tables.
+  * They consume data from Layer 3 Business Views (e.g., `v_readings_enriched`).
+
+### 📊 STAGE 4: Deliver (`/deliver`)
+* **Purpose:** The presentation layer for stakeholders.
+* **Ownership:** Owns PDF/HTML generation, Tableau exports, and automated reports.
+* **Rules:**
+  * Formatter-centric. No heavy calculation logic; they must call modules from `/analyze`.
+
+---
+
+## 3. Implementation Standards for Developers
+
+### Folder Structure
+```text
+backend/python_scripts/
+├── ingest/      # API → Postgres (Raw)
+├── govern/      # Schema, Views, Validations (Truth)
+├── analyze/     # Logic, Stats, Models (Insights)
+├── deliver/     # Reports, Exports, UI (Value)
+├── operations/  # Cron, Sync, Cleanup (Maintenance)
+├── lib/         # Shared Utilities
+└── config/      # Shared Constants/Config
+```
+
+---
+
 # Python Scripts for Argo Energy Solutions
 
 Python-based backend for data ingestion, analytics, and reporting.
@@ -31,53 +90,33 @@ VITE_ENISCOPE_PASSWORD=your_password
 
 ```bash
 # Ingest Wilson Center data (last 90 days)
-python ingest_to_postgres.py --site 23271 --days 90
+python ingest/ingest_to_postgres.py --site 23271 --days 90
 
 # Ingest just 1 day (for daily sync)
-python ingest_to_postgres.py --site 23271 --days 1
+python ingest/ingest_to_postgres.py --site 23271 --days 1
 
 # Help
-python ingest_to_postgres.py --help
+python ingest/ingest_to_postgres.py --help
 ```
 
 ## 📁 Project Structure
 
-```
-python_scripts/
+```text
+backend/python_scripts/
 ├── requirements.txt              # Python dependencies
-├── ingest_to_postgres.py        # Data ingestion from Eniscope API
-├── generate_weekly_report.py    # Weekly report generator
-├── daily_sync.sh                # Automated daily sync script
-├── setup_cron.sh                # Cron job setup helper
-├── README.md                     # This file
-│
-├── lib/                         # Utility libraries
-│   ├── stats_utils.py           # Statistical functions
-│   └── date_utils.py            # Date/time utilities
-│
-├── config/                      # Configuration
-│   └── report_config.py         # Report configuration
-│
-└── analytics/                   # Analytics modules
-    ├── anomaly_detection.py     # Anomaly detection
-    ├── after_hours_waste.py     # After-hours waste analysis
-    ├── spike_detection.py       # Spike detection
-    ├── sensor_health.py         # Sensor health monitoring
-    └── quick_wins.py            # Quick wins recommendations
+├── ingest/                       # Stage 1: Ingest
+├── govern/                       # Stage 2: Govern
+├── analyze/                      # Stage 3: Analyze
+├── deliver/                      # Stage 4: Deliver
+├── operations/                   # Scheduling and cleanup
+├── lib/                          # Utility libraries
+│   ├── stats_utils.py            # Statistical functions
+│   └── date_utils.py             # Date/time utilities
+├── config/                       # Configuration
+│   └── report_config.py          # Report configuration
+└── tests/                        # Analytics tests
 ```
 
-## 🔧 Scripts
-
-### Data Ingestion
-
-**`ingest_to_postgres.py`**
-
-Pulls energy data from Eniscope API and stores in PostgreSQL.
-
-**Features:**
-- Automatic authentication with Eniscope API
-- Rate limiting with exponential backoff
-- Batch inserts for performance (1000 rows at a time)
 - Unit conversion (Wh → kWh, W → kW)
 - Duplicate prevention (unique constraint on channel_id + timestamp)
 - Progress reporting

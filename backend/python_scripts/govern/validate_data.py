@@ -16,8 +16,11 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Tuple
 from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
+from pathlib import Path
+
+_PKG_ROOT = Path(__file__).resolve().parent.parent
+_PROJECT_ROOT = _PKG_ROOT.parent.parent
+load_dotenv(_PROJECT_ROOT / '.env')
 
 
 class DataValidator:

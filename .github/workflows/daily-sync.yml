@@ -26,6 +26,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install psycopg2-binary python-dotenv requests pytz
       
+      - name: Install backend package
+        run: pip install -e backend/python_scripts/
+      
       - name: Run daily sync
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -34,13 +37,13 @@ jobs:
           VITE_ENISCOPE_PASSWORD: ${{ secrets.VITE_ENISCOPE_PASSWORD }}
           VITE_ENISCOPE_API_URL: https://core.eniscope.com
         run: |
-          python backend/python_scripts/ingest_to_postgres.py --site 23271 --days 7
+          python backend/python_scripts/ingest/ingest_to_postgres.py --site 23271 --days 7
       
       - name: Run data validation
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
-          python backend/python_scripts/validate_data.py
+          python backend/python_scripts/govern/validate_data.py
       
       - name: Notify on failure
         if: failure()

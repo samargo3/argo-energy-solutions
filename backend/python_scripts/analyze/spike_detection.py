@@ -7,8 +7,8 @@ Python conversion of backend/scripts/reports/analytics/spike-detection.js
 """
 
 from typing import List, Dict, Any, Optional
-from ..lib.stats_utils import percentile, group_by
-from ..lib.date_utils import parse_timestamp, get_hour_of_week, get_interval_hours
+from lib.stats_utils import percentile, group_by
+from lib.date_utils import parse_timestamp, get_hour_of_week, get_interval_hours
 
 
 def build_spike_baseline(baseline_readings: List[Dict[str, Any]]) -> Dict[int, Dict[str, float]]:

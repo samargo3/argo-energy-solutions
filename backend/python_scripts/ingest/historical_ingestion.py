@@ -20,6 +20,7 @@ import argparse
 import hashlib
 import base64
 import time
+from pathlib import Path
 from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Optional, Tuple
 import requests
@@ -27,7 +28,9 @@ import psycopg2
 from psycopg2.extras import execute_batch, RealDictCursor
 from dotenv import load_dotenv
 
-load_dotenv()
+_PKG_ROOT = Path(__file__).resolve().parent.parent
+_PROJECT_ROOT = _PKG_ROOT.parent.parent
+load_dotenv(_PROJECT_ROOT / '.env')
 
 
 class DataIntegrityError(Exception):

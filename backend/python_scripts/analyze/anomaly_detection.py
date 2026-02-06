@@ -10,9 +10,9 @@ Python conversion of backend/scripts/reports/analytics/anomaly-detection.js
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 
-from ..lib.stats_utils import calculate_stats, calculate_iqr, z_score, group_by
-from ..lib.date_utils import parse_timestamp, get_hour_of_week, get_interval_hours
-from ..config.report_config import is_business_hours
+from lib.stats_utils import calculate_stats, calculate_iqr, z_score, group_by
+from lib.date_utils import parse_timestamp, get_hour_of_week, get_interval_hours
+from config.report_config import is_business_hours
 
 
 def build_baseline_profile(baseline_readings: List[Dict[str, Any]], config: Dict[str, Any]) -> Dict[int, Dict[str, float]]:

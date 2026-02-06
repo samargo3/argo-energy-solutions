@@ -14,8 +14,8 @@ import shutil
 from datetime import datetime, timedelta
 from pathlib import Path
 
-# Configuration
-PROJECT_ROOT = Path(__file__).parent.parent.parent
+# Configuration (operations/ -> python_scripts/ -> backend/ -> project root)
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 REPORTS_DIR = PROJECT_ROOT / 'reports'
 EXPORTS_DIR = PROJECT_ROOT / 'exports'
 LOGS_DIR = PROJECT_ROOT / 'logs'

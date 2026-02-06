@@ -8,9 +8,9 @@ Python conversion of backend/scripts/reports/analytics/after-hours-waste.js
 """
 
 from typing import List, Dict, Any
-from ..lib.stats_utils import non_zero_percentile, calculate_stats
-from ..lib.date_utils import parse_timestamp, get_interval_hours
-from ..config.report_config import is_business_hours
+from lib.stats_utils import non_zero_percentile, calculate_stats
+from lib.date_utils import parse_timestamp, get_interval_hours
+from config.report_config import is_business_hours
 
 
 def calculate_after_hours_waste(

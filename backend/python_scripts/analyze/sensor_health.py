@@ -12,8 +12,8 @@ Python conversion of backend/scripts/reports/analytics/sensor-health.js
 
 from typing import List, Dict, Any
 from datetime import datetime
-from ..lib.stats_utils import find_gaps, calculate_completeness, rolling_variance
-from ..lib.date_utils import parse_timestamp
+from lib.stats_utils import find_gaps, calculate_completeness, rolling_variance
+from lib.date_utils import parse_timestamp
 
 
 def analyze_sensor_health(

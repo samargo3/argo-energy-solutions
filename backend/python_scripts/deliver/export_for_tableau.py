@@ -9,10 +9,13 @@ import os
 import sys
 import psycopg2
 import csv
+from pathlib import Path
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
-load_dotenv()
+_PKG_ROOT = Path(__file__).resolve().parent.parent
+_PROJECT_ROOT = _PKG_ROOT.parent.parent
+load_dotenv(_PROJECT_ROOT / '.env')
 
 
 def export_to_csv(output_dir='exports/tableau'):

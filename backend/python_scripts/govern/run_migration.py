@@ -6,9 +6,12 @@ Run database migration to convert TIMESTAMP to TIMESTAMPTZ
 import os
 import sys
 import psycopg2
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+_PKG_ROOT = Path(__file__).resolve().parent.parent
+_PROJECT_ROOT = _PKG_ROOT.parent.parent
+load_dotenv(_PROJECT_ROOT / '.env')
 
 # SQL migration commands
 MIGRATION_SQL = """

@@ -14,6 +14,7 @@ import argparse
 import hashlib
 import base64
 import time
+from pathlib import Path
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional
 import requests
@@ -21,13 +22,11 @@ import psycopg2
 from psycopg2.extras import execute_batch
 from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
-
-# Ensure same directory as this script is on path (for refresh_views)
-_script_dir = os.path.dirname(os.path.abspath(__file__))
-if _script_dir not in sys.path:
-    sys.path.insert(0, _script_dir)
+_PKG_ROOT = Path(__file__).resolve().parent.parent
+_PROJECT_ROOT = _PKG_ROOT.parent.parent
+if str(_PKG_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PKG_ROOT))
+load_dotenv(_PROJECT_ROOT / '.env')
 
 
 class EniscopeClient:
@@ -416,7 +415,7 @@ def ingest_data(site_id: str, days: int):
             
             # Refresh materialized views so analytics stay current
             try:
-                from refresh_views import refresh_materialized_views
+                from govern.refresh_views import refresh_materialized_views
                 print("🔄 Refreshing materialized views...")
                 if refresh_materialized_views(verbose=True):
                     print("   ✅ Views refreshed.\n")
