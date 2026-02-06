@@ -84,4 +84,6 @@ def get_raw_data(site_id, date_str):
         print(f"❌ Request failed: {e}")
 
 if __name__ == "__main__":
-    get_raw_data("23271", "2025-05-15")
+    site_id = os.getenv("DEBUG_SITE_ID", "23271")
+    target_date = os.getenv("DEBUG_DATE", "2025-05-15")
+    get_raw_data(site_id, target_date)

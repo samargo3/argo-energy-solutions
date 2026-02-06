@@ -1,0 +1,43 @@
+# Debug Eniscope API connectivity from GitHub Actions (bypasses local IP restrictions).
+# Trigger manually from Actions tab → "Debug Eniscope probe" → Run workflow.
+name: Debug Eniscope probe
+
+on:
+  workflow_dispatch:
+    inputs:
+      SITE_ID:
+        description: 'Eniscope site ID to probe'
+        required: false
+        default: '23271'
+      TARGET_DATE:
+        description: 'Target date (YYYY-MM-DD)'
+        required: false
+        default: '2025-05-15'
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    env:
+      VITE_ENISCOPE_API_URL: ${{ secrets.VITE_ENISCOPE_API_URL }}
+      VITE_ENISCOPE_API_KEY: ${{ secrets.VITE_ENISCOPE_API_KEY }}
+      VITE_ENISCOPE_EMAIL: ${{ secrets.VITE_ENISCOPE_EMAIL }}
+      VITE_ENISCOPE_PASSWORD: ${{ secrets.VITE_ENISCOPE_PASSWORD }}
+      DEBUG_SITE_ID: ${{ inputs.SITE_ID }}
+      DEBUG_DATE: ${{ inputs.TARGET_DATE }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests python-dotenv
+
+      - name: Run Eniscope debug probe
+        run: python backend/python_scripts/ingest/debug_raw_fetch.py
