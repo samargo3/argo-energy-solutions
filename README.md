@@ -9,6 +9,8 @@ A React-based dashboard application for connecting to Best.Energy API, performin
 - 📈 **Data Visualization** - Real-time energy consumption charts using Recharts
 - 📊 **Statistical Analysis** - Calculate energy statistics and insights
 - 🔄 **API Integration** - Connect to Best.Energy API for real-time data
+- 📤 **Data Export** - Export Wilson Center raw data to CSV for Tableau/AI analysis
+- ⚡ **Weekly Reports** - Automated weekly energy analytics with anomaly detection and optimization recommendations
 
 ## Tech Stack
 
@@ -69,7 +71,7 @@ argo-energy-solutions/
 │   │   ├── data-collection/       # Data fetching & ingestion
 │   │   ├── database/              # Database management
 │   │   ├── diagnostics/           # Diagnostic tools
-│   │   ├── reports/               # Report generation
+│   │   ├── reports/               # Weekly analytics reports (NEW!)
 │   │   └── utilities/             # Utility scripts
 │   └── python_reports/            # Python analytics
 │       ├── scripts/               # Python report scripts
@@ -109,6 +111,27 @@ Quick reference documents:
 - `docs/NEXT_STEPS.md` - Planned features and roadmap
 - `docs/QUICK_REFERENCE.md` - Quick command reference
 
+### Weekly Analytics Reports
+
+Generate automated weekly energy analytics reports with:
+- **Sensor health monitoring** - Detect missing data, stale meters, and flatlined sensors
+- **After-hours waste analysis** - Identify equipment running unnecessarily outside business hours
+- **Anomaly detection** - Statistical outlier identification using IQR method
+- **Demand spike detection** - Peak power events and short-cycling identification
+- **Quick wins** - Actionable recommendations ranked by impact and cost savings
+
+**Quick Start:**
+```bash
+# Generate report for last week
+npm run report:weekly -- --site YOUR_SITE_ID
+
+# See full documentation
+cat backend/scripts/reports/QUICKSTART.md
+cat backend/scripts/reports/README.md
+```
+
+For complete documentation, see `backend/scripts/reports/README.md`
+
 ## API Integration
 
 The application is configured to connect to the Best.Energy API. Review `docs/reference/Core_API_v1.pdf` for complete API specifications.
@@ -122,6 +145,7 @@ npm run explore:channels    # Explore available channels
 npm run analyze:wilson      # Wilson Center specific analysis
 npm run diagnose:data       # Diagnostic data access tests
 npm run export:csv          # Export data to CSV
+npm run export:wilson:raw   # Export Wilson Center raw monthly data to CSV
 
 # Data Ingestion
 npm run ingest:data         # Ingest Eniscope data
@@ -132,6 +156,10 @@ npm run ingest:incremental  # Incremental ingestion
 npm run db:check            # Check database status
 npm run unit:health         # Unit health report
 npm run check:daily         # Daily data check
+
+# Weekly Analytics Reports (NEW!)
+npm run report:weekly       # Generate weekly exceptions & opportunities brief
+npm run report:test         # Run analytics unit tests
 
 # Development
 npm run dev                 # Start frontend dev server

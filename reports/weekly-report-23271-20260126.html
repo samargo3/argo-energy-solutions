@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weekly Energy Report - Site 23271</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f7fa;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+        }
+        
+        .header h1 {
+            font-size: 32px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .header .subtitle {
+            font-size: 18px;
+            opacity: 0.9;
+        }
+        
+        .header .date-range {
+            margin-top: 16px;
+            font-size: 16px;
+            opacity: 0.8;
+        }
+        
+        .status-banner {
+            background: #dc3545;
+            color: white;
+            padding: 20px 40px;
+            font-size: 18px;
+            font-weight: 600;
+            text-align: center;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .section {
+            margin-bottom: 48px;
+        }
+        
+        .section-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 12px;
+            border-bottom: 3px solid #667eea;
+        }
+        
+        .section-icon {
+            font-size: 32px;
+            margin-right: 16px;
+        }
+        
+        .section-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 32px;
+        }
+        
+        .summary-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 24px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .summary-card .label {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-bottom: 8px;
+        }
+        
+        .summary-card .value {
+            font-size: 32px;
+            font-weight: 700;
+        }
+        
+        .summary-card .unit {
+            font-size: 16px;
+            opacity: 0.8;
+        }
+        
+        .alert-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 16px;
+            margin-bottom: 16px;
+            border-radius: 4px;
+        }
+        
+        .alert-box.danger {
+            background: #f8d7da;
+            border-left-color: #dc3545;
+        }
+        
+        .alert-box.success {
+            background: #d4edda;
+            border-left-color: #28a745;
+        }
+        
+        .alert-box .title {
+            font-weight: 600;
+            margin-bottom: 4px;
+            font-size: 16px;
+        }
+        
+        .alert-box .details {
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .table-container {
+            overflow-x: auto;
+            margin-bottom: 24px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        
+        thead {
+            background: #f8f9fa;
+        }
+        
+        th {
+            text-align: left;
+            padding: 12px;
+            font-weight: 600;
+            color: #2c3e50;
+            border-bottom: 2px solid #dee2e6;
+        }
+        
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        tbody tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .priority-high {
+            color: #dc3545;
+            font-weight: 600;
+        }
+        
+        .priority-medium {
+            color: #ffc107;
+            font-weight: 600;
+        }
+        
+        .priority-low {
+            color: #6c757d;
+        }
+        
+        .recommendation-card {
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 16px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .recommendation-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .recommendation-card.high {
+            border-left: 4px solid #dc3545;
+        }
+        
+        .recommendation-card.medium {
+            border-left: 4px solid #ffc107;
+        }
+        
+        .recommendation-card.low {
+            border-left: 4px solid #28a745;
+        }
+        
+        .recommendation-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 12px;
+        }
+        
+        .recommendation-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .recommendation-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .recommendation-badge.high {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .recommendation-badge.medium {
+            background: #ffc107;
+            color: #333;
+        }
+        
+        .recommendation-badge.low {
+            background: #28a745;
+            color: white;
+        }
+        
+        .recommendation-impact {
+            display: flex;
+            gap: 24px;
+            margin: 12px 0;
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+        
+        .impact-item {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .impact-label {
+            font-size: 12px;
+            color: #6c757d;
+            margin-bottom: 4px;
+        }
+        
+        .impact-value {
+            font-size: 16px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .recommendation-actions {
+            margin-top: 12px;
+        }
+        
+        .recommendation-actions ul {
+            margin-left: 20px;
+        }
+        
+        .recommendation-actions li {
+            margin-bottom: 8px;
+            color: #555;
+        }
+        
+        .no-issues {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+        }
+        
+        .no-issues .icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+        
+        .footer {
+            background: #f8f9fa;
+            padding: 32px 40px;
+            border-top: 1px solid #dee2e6;
+            text-align: center;
+            color: #6c757d;
+            font-size: 14px;
+        }
+        
+        .footer .logo {
+            font-size: 20px;
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 8px;
+        }
+        
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            
+            .container {
+                box-shadow: none;
+            }
+            
+            .recommendation-card:hover {
+                transform: none;
+                box-shadow: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Weekly Exceptions & Opportunities Brief</h1>
+            <div class="subtitle">Site 23271</div>
+            <div class="date-range">📅 January 26 - February 01, 2026</div>
+        </div>
+        
+        <div class="status-banner">
+            Status: Action Required
+        </div>
+        
+        <div class="content">
+            <!-- EXECUTIVE SUMMARY -->
+            <div class="section">
+                <div class="section-header">
+                    <div class="section-icon">📊</div>
+                    <div class="section-title">Executive Summary</div>
+                </div>
+                
+                <div class="summary-grid">
+                    <div class="summary-card">
+                        <div class="label">Sensor Issues</div>
+                        <div class="value">17</div>
+                        <div class="unit">17 high priority</div>
+                    </div>
+                    
+                    <div class="summary-card">
+                        <div class="label">Weekly Waste</div>
+                        <div class="value">0</div>
+                        <div class="unit">kWh ($0)</div>
+                    </div>
+                    
+                    <div class="summary-card">
+                        <div class="label">Annual Potential</div>
+                        <div class="value">$0</div>
+                        <div class="unit">in savings</div>
+                    </div>
+                    
+                    <div class="summary-card">
+                        <div class="label">Recommendations</div>
+                        <div class="value">1</div>
+                        <div class="unit">quick wins</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SENSOR & COMMUNICATIONS ISSUES -->
+            <div class="section">
+                <div class="section-header">
+                    <div class="section-icon">⚠️</div>
+                    <div class="section-title">Sensor & Communications Issues</div>
+                </div>
+
+                <p style="margin-bottom: 16px;">Found <strong>17 issues</strong> affecting data quality and system visibility.</p>
+                
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Severity</th>
+                                <th>Meter</th>
+                                <th>Issue Type</th>
+                                <th>Details</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+
+                            <tr>
+                                <td class="priority-high">🔴 HIGH</td>
+                                <td>A/C 0</td>
+                                <td>Stale Data</td>
+                                <td>See details in analytics</td>
+                            </tr>
+
+                            <tr>
+                                <td class="priority-high">🔴 HIGH</td>
+                                <td>A/C 3</td>
+                                <td>Stale Data</td>
+                                <td>See details in analytics</td>
+                            </tr>
+
+                            <tr>
+                                <td class="priority-high">🔴 HIGH</td>
+                                <td>A/C 6</td>
+                                <td>Stale Data</td>
+                                <td>See details in analytics</td>
+                            </tr>
+
+                            <tr>
+                                <td class="priority-high">🔴 HIGH</td>
+                                <td>AHU-1A_WCDS_Wilson Ctr</td>
+                                <td>Stale Data</td>
+                                <td>See details in analytics</td>
+                            </tr>
+
+                            <tr>
+                                <td class="priority-high">🔴 HIGH</td>
+                                <td>AHU-1B_WCDS_Wilson Ctr</td>
+                                <td>Stale Data</td>
+                                <td>See details in analytics</td>
+                            </tr>
+
+                            <tr>
+                                <td class="priority-high">🔴 HIGH</td>
+                                <td>AHU-2_WCDS_Wilson Ctr</td>
+                                <td>Stale Data</td>
+                                <td>See details in analytics</td>
+                            </tr>
+
+                            <tr>
+                                <td class="priority-high">🔴 HIGH</td>
+                                <td>CDKH_Kitchen Panel(small)_WCDS_Wilson Ctr</td>
+                                <td>Stale Data</td>
+                                <td>See details in analytics</td>
+                            </tr>
+
+                            <tr>
+                                <td class="priority-high">🔴 HIGH</td>
+                                <td>CDPK_Kitchen Main Panel(s)_WCDS_Wilson Ctr</td>
+                                <td>Stale Data</td>
+                                <td>See details in analytics</td>
+                            </tr>
+
+                            <tr>
+                                <td class="priority-high">🔴 HIGH</td>
+                                <td>Dryer</td>
+                                <td>Stale Data</td>
+                                <td>See details in analytics</td>
+                            </tr>
+
+                            <tr>
+                                <td class="priority-high">🔴 HIGH</td>
+                                <td>Microwave</td>
+                                <td>Stale Data</td>
+                                <td>See details in analytics</td>
+                            </tr>
+
+                            <tr>
+                                <td class="priority-high">🔴 HIGH</td>
+                                <td>Oven</td>
+                                <td>Stale Data</td>
+                                <td>See details in analytics</td>
+                            </tr>
+
+                            <tr>
+                                <td class="priority-high">🔴 HIGH</td>
+                                <td>RTU-1_WCDS_Wilson Ctr</td>
+                                <td>Stale Data</td>
+                                <td>See details in analytics</td>
+                            </tr>
+
+                            <tr>
+                                <td class="priority-high">🔴 HIGH</td>
+                                <td>RTU-2_WCDS_Wilson Ctr</td>
+                                <td>Stale Data</td>
+                                <td>See details in analytics</td>
+                            </tr>
+
+                            <tr>
+                                <td class="priority-high">🔴 HIGH</td>
+                                <td>RTU-3_WCDS_Wilson Ctr</td>
+                                <td>Stale Data</td>
+                                <td>See details in analytics</td>
+                            </tr>
+
+                            <tr>
+                                <td class="priority-high">🔴 HIGH</td>
+                                <td>Refrigerator</td>
+                                <td>Stale Data</td>
+                                <td>See details in analytics</td>
+                            </tr>
+
+                            <tr>
+                                <td class="priority-high">🔴 HIGH</td>
+                                <td>Test - Dryer</td>
+                                <td>Stale Data</td>
+                                <td>See details in analytics</td>
+                            </tr>
+
+                            <tr>
+                                <td class="priority-high">🔴 HIGH</td>
+                                <td>Washing Machine</td>
+                                <td>Stale Data</td>
+                                <td>See details in analytics</td>
+                            </tr>
+
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+
+            <!-- AFTER-HOURS ENERGY WASTE -->
+            <div class="section">
+                <div class="section-header">
+                    <div class="section-icon">🌙</div>
+                    <div class="section-title">After-Hours Energy Waste</div>
+                </div>
+
+                <div class="no-issues">
+                    <div class="icon">✅</div>
+                    <div>After-hours energy consumption is within normal baseline parameters.</div>
+                </div>
+
+            </div>
+
+            <!-- UNUSUAL SPIKES & ANOMALIES -->
+            <div class="section">
+                <div class="section-header">
+                    <div class="section-icon">📈</div>
+                    <div class="section-title">Unusual Spikes & Anomalies</div>
+                </div>
+
+                <div class="no-issues">
+                    <div class="icon">✅</div>
+                    <div>No unusual power spikes or anomalies detected this week.</div>
+                </div>
+
+            </div>
+
+            <!-- QUICK WINS & RECOMMENDATIONS -->
+            <div class="section">
+                <div class="section-header">
+                    <div class="section-icon">💡</div>
+                    <div class="section-title">Quick Wins & Recommendations</div>
+                </div>
+
+                <p style="margin-bottom: 24px;">Based on this week's data, we've identified <strong>1 actionable recommendations</strong> to improve energy efficiency and reduce costs.</p>
+
+                <div class="recommendation-card high">
+                    <div class="recommendation-header">
+                        <div class="recommendation-title">1. Fix data communication issues on 17 meter(s)</div>
+                        <span class="recommendation-badge high">high</span>
+                    </div>
+                    
+                    <div class="recommendation-impact">
+                        <div class="impact-item">
+                            <span class="impact-label">Weekly Impact</span>
+                            <span class="impact-value">N/A</span>
+                        </div>
+                        <div class="impact-item">
+                            <span class="impact-label">Weekly Savings</span>
+                            <span class="impact-value">$0</span>
+                        </div>
+                        <div class="impact-item">
+                            <span class="impact-label">Annual Potential</span>
+                            <span class="impact-value">$0</span>
+                        </div>
+                        <div class="impact-item">
+                            <span class="impact-label">Effort</span>
+                            <span class="impact-value">Medium</span>
+                        </div>
+                        <div class="impact-item">
+                            <span class="impact-label">Owner</span>
+                            <span class="impact-value">Energy Manager / Facilities</span>
+                        </div>
+                    </div>
+                    
+                    <div class="recommendation-actions">
+                        <strong>Recommended Actions:</strong>
+                        <ul>
+
+                            <li>Check network connectivity and power to affected meters</li>
+
+                            <li>Verify meter configuration and data logging settings</li>
+
+                            <li>Contact meter vendor if issues persist</li>
+
+                            <li>Consider replacing meters with repeated failures</li>
+
+                        </ul>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+        
+        <div class="footer">
+            <div class="logo">⚡ Argo Energy Solutions</div>
+            <div>Automated Weekly Energy Report</div>
+            <div style="margin-top: 8px;">
+                Generated on February 03, 2026 at 02:24 PM
+            </div>
+        </div>
+    </div>
+</body>
+</html>

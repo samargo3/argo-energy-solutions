@@ -1,0 +1,20 @@
+# PostgreSQL and database
+psycopg2-binary>=2.9.9
+SQLAlchemy>=2.0.23
+
+# API and HTTP
+requests>=2.31.0
+
+# Data manipulation
+pandas>=2.1.4
+numpy>=1.26.2
+
+# Environment variables
+python-dotenv>=1.0.0
+
+# Date/time utilities
+python-dateutil>=2.8.2
+
+# Optional: For advanced analytics
+scipy>=1.11.4  # Statistical functions
+matplotlib>=3.8.2  # Plotting (if needed)

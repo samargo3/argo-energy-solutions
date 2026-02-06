@@ -1,0 +1,287 @@
+{
+  "metadata": {
+    "generatedAt": "2026-02-03T13:17:09.831219",
+    "reportVersion": "1.0.0-python",
+    "site": {
+      "siteId": 23271,
+      "siteName": "Site 23271",
+      "address": "N/A"
+    },
+    "period": {
+      "start": "2026-01-26T00:00:00-05:00",
+      "end": "2026-02-01T23:59:59-05:00",
+      "timezone": "America/New_York"
+    },
+    "baseline": {
+      "start": "2025-12-29T00:00:00-05:00",
+      "end": "2026-01-25T23:59:59-05:00",
+      "weeksCount": 4
+    },
+    "dataResolution": "900s (15min)"
+  },
+  "summary": {
+    "headline": [
+      "17 critical data quality issue(s) detected"
+    ],
+    "topRisks": [
+      "Missing data on 17 channel(s)"
+    ],
+    "topOpportunities": [
+      "Continue monitoring for optimization opportunities"
+    ],
+    "totalPotentialSavings": {
+      "weeklyKwh": 0,
+      "weeklyCost": 0.0,
+      "estimatedAnnual": 0.0
+    }
+  },
+  "sections": {
+    "sensorHealth": {
+      "summary": [
+        {
+          "type": "stale_data",
+          "count": 17,
+          "affectedChannels": 17,
+          "description": "17 stale_data issue(s) affecting 17 channel(s): AHU-2_WCDS_Wilson Ctr, A/C 0, CDKH_Kitchen Panel(small)_WCDS_Wilson Ctr and 14 more"
+        }
+      ],
+      "totalIssues": 17,
+      "bySeverity": {
+        "high": 17,
+        "medium": 0,
+        "low": 0
+      },
+      "issues": [
+        {
+          "type": "stale_data",
+          "severity": "high",
+          "channelId": 158697,
+          "channelName": "A/C 0",
+          "lastReading": "2026-02-02 04:51:31",
+          "hoursSince": "32.4",
+          "description": "No data for 32.4 hours (last: 2026-02-02 04:51:31)",
+          "source": "inferred_from_timestamps"
+        },
+        {
+          "type": "stale_data",
+          "severity": "high",
+          "channelId": 158696,
+          "channelName": "A/C 3",
+          "lastReading": "2026-02-02 04:51:31",
+          "hoursSince": "32.4",
+          "description": "No data for 32.4 hours (last: 2026-02-02 04:51:31)",
+          "source": "inferred_from_timestamps"
+        },
+        {
+          "type": "stale_data",
+          "severity": "high",
+          "channelId": 158701,
+          "channelName": "A/C 6",
+          "lastReading": "2026-02-02 04:51:31",
+          "hoursSince": "32.4",
+          "description": "No data for 32.4 hours (last: 2026-02-02 04:51:31)",
+          "source": "inferred_from_timestamps"
+        },
+        {
+          "type": "stale_data",
+          "severity": "high",
+          "channelId": 162122,
+          "channelName": "AHU-1A_WCDS_Wilson Ctr",
+          "lastReading": "2026-02-02 04:51:31",
+          "hoursSince": "32.4",
+          "description": "No data for 32.4 hours (last: 2026-02-02 04:51:31)",
+          "source": "inferred_from_timestamps"
+        },
+        {
+          "type": "stale_data",
+          "severity": "high",
+          "channelId": 162123,
+          "channelName": "AHU-1B_WCDS_Wilson Ctr",
+          "lastReading": "2026-02-02 04:51:31",
+          "hoursSince": "32.4",
+          "description": "No data for 32.4 hours (last: 2026-02-02 04:51:31)",
+          "source": "inferred_from_timestamps"
+        },
+        {
+          "type": "stale_data",
+          "severity": "high",
+          "channelId": 162121,
+          "channelName": "AHU-2_WCDS_Wilson Ctr",
+          "lastReading": "2026-02-02 04:51:31",
+          "hoursSince": "32.4",
+          "description": "No data for 32.4 hours (last: 2026-02-02 04:51:31)",
+          "source": "inferred_from_timestamps"
+        },
+        {
+          "type": "stale_data",
+          "severity": "high",
+          "channelId": 162319,
+          "channelName": "CDKH_Kitchen Panel(small)_WCDS_Wilson Ctr",
+          "lastReading": "2026-02-02 04:51:31",
+          "hoursSince": "32.4",
+          "description": "No data for 32.4 hours (last: 2026-02-02 04:51:31)",
+          "source": "inferred_from_timestamps"
+        },
+        {
+          "type": "stale_data",
+          "severity": "high",
+          "channelId": 162285,
+          "channelName": "CDPK_Kitchen Main Panel(s)_WCDS_Wilson Ctr",
+          "lastReading": "2026-02-02 04:51:31",
+          "hoursSince": "32.4",
+          "description": "No data for 32.4 hours (last: 2026-02-02 04:51:31)",
+          "source": "inferred_from_timestamps"
+        },
+        {
+          "type": "stale_data",
+          "severity": "high",
+          "channelId": 158694,
+          "channelName": "Dryer",
+          "lastReading": "2026-02-02 04:51:31",
+          "hoursSince": "32.4",
+          "description": "No data for 32.4 hours (last: 2026-02-02 04:51:31)",
+          "source": "inferred_from_timestamps"
+        },
+        {
+          "type": "stale_data",
+          "severity": "high",
+          "channelId": 158698,
+          "channelName": "Microwave",
+          "lastReading": "2026-02-02 04:51:31",
+          "hoursSince": "32.4",
+          "description": "No data for 32.4 hours (last: 2026-02-02 04:51:31)",
+          "source": "inferred_from_timestamps"
+        },
+        {
+          "type": "stale_data",
+          "severity": "high",
+          "channelId": 158700,
+          "channelName": "Oven",
+          "lastReading": "2026-02-02 04:51:31",
+          "hoursSince": "32.4",
+          "description": "No data for 32.4 hours (last: 2026-02-02 04:51:31)",
+          "source": "inferred_from_timestamps"
+        },
+        {
+          "type": "stale_data",
+          "severity": "high",
+          "channelId": 162320,
+          "channelName": "RTU-1_WCDS_Wilson Ctr",
+          "lastReading": "2026-02-02 04:51:31",
+          "hoursSince": "32.4",
+          "description": "No data for 32.4 hours (last: 2026-02-02 04:51:31)",
+          "source": "inferred_from_timestamps"
+        },
+        {
+          "type": "stale_data",
+          "severity": "high",
+          "channelId": 162119,
+          "channelName": "RTU-2_WCDS_Wilson Ctr",
+          "lastReading": "2026-02-02 04:51:31",
+          "hoursSince": "32.4",
+          "description": "No data for 32.4 hours (last: 2026-02-02 04:51:31)",
+          "source": "inferred_from_timestamps"
+        },
+        {
+          "type": "stale_data",
+          "severity": "high",
+          "channelId": 162120,
+          "channelName": "RTU-3_WCDS_Wilson Ctr",
+          "lastReading": "2026-02-02 04:51:31",
+          "hoursSince": "32.4",
+          "description": "No data for 32.4 hours (last: 2026-02-02 04:51:31)",
+          "source": "inferred_from_timestamps"
+        },
+        {
+          "type": "stale_data",
+          "severity": "high",
+          "channelId": 158699,
+          "channelName": "Refrigerator",
+          "lastReading": "2026-02-02 04:51:31",
+          "hoursSince": "32.4",
+          "description": "No data for 32.4 hours (last: 2026-02-02 04:51:31)",
+          "source": "inferred_from_timestamps"
+        },
+        {
+          "type": "stale_data",
+          "severity": "high",
+          "channelId": 159024,
+          "channelName": "Test - Dryer",
+          "lastReading": "2026-02-02 04:51:31",
+          "hoursSince": "32.4",
+          "description": "No data for 32.4 hours (last: 2026-02-02 04:51:31)",
+          "source": "inferred_from_timestamps"
+        },
+        {
+          "type": "stale_data",
+          "severity": "high",
+          "channelId": 158702,
+          "channelName": "Washing Machine",
+          "lastReading": "2026-02-02 04:51:31",
+          "hoursSince": "32.4",
+          "description": "No data for 32.4 hours (last: 2026-02-02 04:51:31)",
+          "source": "inferred_from_timestamps"
+        }
+      ]
+    },
+    "afterHoursWaste": {
+      "summary": {
+        "totalMetersWithExcess": 0,
+        "totalExcessKwh": 0,
+        "totalExcessCost": 0,
+        "estimatedAnnualCost": 0
+      },
+      "topMeters": []
+    },
+    "anomalies": {
+      "summary": {
+        "totalEvents": 0,
+        "affectedChannels": 0,
+        "totalExcessKwh": 0
+      },
+      "timeline": [],
+      "byChannel": []
+    },
+    "spikes": {
+      "summary": {
+        "totalEvents": 0,
+        "affectedChannels": 0,
+        "totalExcessKwh": 0
+      },
+      "topSpikes": [],
+      "byChannel": []
+    },
+    "quickWins": [
+      {
+        "title": "Fix data communication issues on 17 meter(s)",
+        "type": "sensor_health",
+        "priority": "high",
+        "impact": {
+          "weeklyKwh": "N/A",
+          "weeklyCost": 0,
+          "annualCost": 0,
+          "description": "Missing data prevents accurate monitoring and may hide energy waste"
+        },
+        "description": "17 meter(s) have high-severity data issues: AHU-2_WCDS_Wilson Ctr, A/C 0, CDKH_Kitchen Panel(small)_WCDS_Wilson Ctr. This prevents accurate energy monitoring and may be hiding consumption anomalies.",
+        "recommendations": [
+          "Check network connectivity and power to affected meters",
+          "Verify meter configuration and data logging settings",
+          "Contact meter vendor if issues persist",
+          "Consider replacing meters with repeated failures"
+        ],
+        "confidence": "high",
+        "owner": "Energy Manager / Facilities",
+        "effort": "Medium"
+      }
+    ]
+  },
+  "charts": {
+    "afterHoursRanking": [],
+    "anomalyTimeline": [],
+    "spikeEvents": []
+  },
+  "dataQuality": {
+    "channelsAnalyzed": 17,
+    "avgCompleteness": 109.67261904761905
+  }
+}

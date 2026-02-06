@@ -1,0 +1,59 @@
+name: Weekly Energy Report
+
+on:
+  schedule:
+    # Run every Monday at 8 AM UTC (3 AM EST / 2 AM EDT)
+    - cron: '0 8 * * 1'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  generate-report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install psycopg2-binary python-dotenv pandas numpy scipy pytz
+      
+      - name: Generate customer report
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          python backend/python_scripts/generate_customer_report.py --site 23271
+      
+      - name: Upload report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: weekly-report-${{ github.run_number }}
+          path: reports/weekly-report-*.html
+          retention-days: 30
+      
+      - name: Generate JSON report for analysis
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          python backend/python_scripts/generate_customer_report.py --site 23271 --json
+      
+      - name: Upload JSON artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: weekly-report-json-${{ github.run_number }}
+          path: reports/weekly-report-*.json
+          retention-days: 90
+      
+      - name: Notify on completion
+        if: success()
+        run: |
+          echo "Weekly report generated successfully!"
+          # Add notification logic here (email report, upload to S3, etc.)

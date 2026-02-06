@@ -1,0 +1,49 @@
+name: Daily Energy Data Sync
+
+on:
+  schedule:
+    # Run daily at 2 AM UTC (9 PM EST / 8 PM EDT)
+    - cron: '0 2 * * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  sync-data:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install psycopg2-binary python-dotenv requests pytz
+      
+      - name: Run daily sync
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          VITE_ENISCOPE_API_KEY: ${{ secrets.VITE_ENISCOPE_API_KEY }}
+          VITE_ENISCOPE_EMAIL: ${{ secrets.VITE_ENISCOPE_EMAIL }}
+          VITE_ENISCOPE_PASSWORD: ${{ secrets.VITE_ENISCOPE_PASSWORD }}
+          VITE_ENISCOPE_API_URL: https://core.eniscope.com
+        run: |
+          python backend/python_scripts/ingest_to_postgres.py --site 23271 --days 7
+      
+      - name: Run data validation
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          python backend/python_scripts/validate_data.py
+      
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "Daily sync failed! Check logs for details."
+          # Add notification logic here (email, Slack, etc.)

@@ -1,0 +1,31 @@
+{
+  "metadata": {
+    "generatedAt": "2026-02-03T14:15:12.463228",
+    "testRun": true,
+    "period": {
+      "start": "2026-01-26T00:00:00-05:00",
+      "end": "2026-02-01T23:59:59-05:00"
+    }
+  },
+  "summary": {
+    "channelsTested": 5,
+    "reportReadings": 3585,
+    "baselineReadings": 13440
+  },
+  "results": {
+    "sensorHealth": {
+      "totalIssues": 5,
+      "highSeverity": 5
+    },
+    "afterHoursWaste": {
+      "totalExcess": 0
+    },
+    "anomalies": {
+      "totalEvents": 0
+    },
+    "spikes": {
+      "totalEvents": 0
+    },
+    "quickWins": 1
+  }
+}

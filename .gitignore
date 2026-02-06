@@ -12,6 +12,13 @@ dist
 dist-ssr
 *.local
 
+# Python
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
 # Environment variables
 .env
 .env.local
@@ -24,10 +31,29 @@ data/
 !package-lock.json
 !tsconfig.json
 
-# Editor directories and files
+# Allow reports to be committed (optional - remove if you don't want reports in git)
+!reports/*.json
+!reports/*.html
+
+# Exports folder - large files, regenerate as needed
+exports/tableau/*.csv
+exports/archive/*
+
+# Allow the README files
+!exports/README.md
+!exports/*/README.md
+
+# GitHub Actions logs and artifacts (auto-managed)
+historical_ingestion.log
+*.log
+
+# Editor and IDE
 .vscode/*
 !.vscode/extensions.json
 .idea
+.cursor/
+.agents/
+.claude/
 .DS_Store
 *.suo
 *.ntvs*
