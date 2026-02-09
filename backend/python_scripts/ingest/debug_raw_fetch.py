@@ -1,8 +1,10 @@
-import sys
+"""
+Debug Eniscope API probe – uses Basic Auth (matches curl from support).
+"""
 import os
-import requests
+import base64
 import hashlib
-from datetime import datetime
+import requests
 from dotenv import load_dotenv
 from pathlib import Path
 
@@ -20,35 +22,36 @@ PASSWORD = os.getenv('VITE_ENISCOPE_PASSWORD')
 
 def get_raw_data(site_id, date_str):
     print(f"🔍 Probing Eniscope API for Site {site_id} on {date_str}...")
+    print("   Auth: Basic Auth header (matches curl from support)")
 
     # 1. Sanity Check Credentials
-    if not PASSWORD:
-        print("❌ Password not found in .env")
+    if not all([API_KEY, EMAIL, PASSWORD]):
+        print("❌ Missing env vars. Need: VITE_ENISCOPE_API_KEY, VITE_ENISCOPE_EMAIL, VITE_ENISCOPE_PASSWORD")
         return
-    
-    pass_len = len(PASSWORD)
-    print(f"   ℹ️  Loaded Password: {PASSWORD[:2]}... (Length: {pass_len})")
 
-    # 2. Authenticate
     if not API_URL:
         print("❌ API_URL is missing")
         return
-        
+
+    print(f"   ℹ️  API Key: {API_KEY[:4]}... (Length: {len(API_KEY)})")
+    print(f"   ℹ️  Email:   {EMAIL}")
+
     base_url = API_URL.rstrip('/')
+
+    # Basic Auth header: base64("email:md5password")
     password_md5 = hashlib.md5(PASSWORD.encode()).hexdigest()
-    
-    # Headers: Keep User-Agent to avoid 403 WAF blocking
+    auth_str = f"{EMAIL}:{password_md5}"
+    auth_b64 = base64.b64encode(auth_str.encode()).decode()
+
     headers = {
         'X-Eniscope-API': API_KEY,
+        'Authorization': f'Basic {auth_b64}',
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
         'Accept': 'application/json'
     }
 
-    # Params: PUT APIKEY BACK IN HERE. The App likely needs it.
+    # Params: no credentials — auth is in the header now
     params = {
-        'apikey': API_KEY,         # <--- RESTORED THIS
-        'username': EMAIL,
-        'password': password_md5,
         'format': 'json',
         'action': 'summarize',
         'id': site_id,
@@ -57,19 +60,19 @@ def get_raw_data(site_id, date_str):
         'range_end': f"{date_str} 23:59:59",
         'fields[]': ['energy', 'power']
     }
-    
+
     try:
         target_url = f"{base_url}/api"
-        print(f"   Requesting: {target_url} (Auth: Params + Headers)")
+        print(f"   Requesting: GET {target_url}")
         response = requests.get(target_url, headers=headers, params=params, timeout=30)
         print(f"   Response Status: {response.status_code}")
-        
+
         if response.status_code == 401:
-             print("\n❌ 401 UNAUTHORIZED.")
-             print("   Debug Info:")
-             print(f"   - Email Sent: {EMAIL}")
-             print(f"   - MD5 Sent:   {password_md5}")
-             print(f"   - API Key:    {API_KEY[:4]}...")
+            print("\n❌ 401 UNAUTHORIZED. Basic Auth was rejected.")
+            print("   Debug Info:")
+            print(f"   - API Key: {API_KEY[:4]}...")
+            print(f"   - Email:   {EMAIL}")
+            print(f"   - MD5:     {password_md5[:8]}...")
         
         try:
             data = response.json()

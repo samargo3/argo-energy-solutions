@@ -5,17 +5,21 @@ Eniscope Data Ingestion to PostgreSQL (Neon)
 Pulls data from Eniscope API and stores it in PostgreSQL database.
 
 Usage:
+    # Last N days (default)
     python ingest_to_postgres.py --site 23271 --days 90
+
+    # Exact date window (for backfill)
+    python ingest_to_postgres.py --site 23271 --start-date 2025-04-01 --end-date 2025-11-30
 """
 
 import os
 import sys
 import argparse
-import hashlib
 import base64
+import hashlib
 import time
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from typing import List, Dict, Optional
 import requests
 import psycopg2
@@ -26,40 +30,72 @@ _PKG_ROOT = Path(__file__).resolve().parent.parent
 _PROJECT_ROOT = _PKG_ROOT.parent.parent
 if str(_PKG_ROOT) not in sys.path:
     sys.path.insert(0, str(_PKG_ROOT))
-load_dotenv(_PROJECT_ROOT / '.env')
+# Override=True ensures we reload the latest .env (matches debug script)
+load_dotenv(_PROJECT_ROOT / '.env', override=True)
+
+# Default resolution in seconds (15 min). Override via ENISCOPE_RESOLUTION or --resolution.
+DEFAULT_RESOLUTION = int(os.getenv('ENISCOPE_RESOLUTION', '900'))
+
+
+def _load_password_safely() -> str:
+    """Load password from env; reject placeholders (e.g. $$$) to avoid 403/auth issues."""
+    raw = os.getenv('VITE_ENISCOPE_PASSWORD')
+    if not raw or not raw.strip():
+        raise ValueError(
+            'VITE_ENISCOPE_PASSWORD is missing. Set it in .env (no credentials in code).'
+        )
+    if '$$$' in raw:
+        raise ValueError(
+            'VITE_ENISCOPE_PASSWORD looks like a placeholder (contains $$$). '
+            'Replace with the real value in .env.'
+        )
+    return raw.strip()
 
 
 class EniscopeClient:
-    """Client for Eniscope API with authentication and rate limiting."""
+    """Client for Eniscope API with Basic Auth, stealth headers, and rate limiting."""
+    
+    # Stealth headers to avoid 403 WAF blocking (same as debug_raw_fetch.py)
+    USER_AGENT = (
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+        '(KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    )
     
     def __init__(self):
         self.base_url = os.getenv('VITE_ENISCOPE_API_URL', 'https://core.eniscope.com').rstrip('/')
         self.api_key = os.getenv('VITE_ENISCOPE_API_KEY')
         self.email = os.getenv('VITE_ENISCOPE_EMAIL')
-        self.password = os.getenv('VITE_ENISCOPE_PASSWORD')
+        self.password = _load_password_safely()
         
-        if not all([self.api_key, self.email, self.password]):
-            raise ValueError('Missing required environment variables')
+        if not all([self.api_key, self.email]):
+            raise ValueError('Missing required env: VITE_ENISCOPE_API_KEY, VITE_ENISCOPE_EMAIL')
         
         self.password_md5 = hashlib.md5(self.password.encode()).hexdigest()
         self.session_token = None
         self.cached_organizations = None
+        
+        # Basic Auth header: base64("username:md5password")
+        auth_str = f"{self.email}:{self.password_md5}"
+        auth_b64 = base64.b64encode(auth_str.encode()).decode()
+        
+        # Every request: stealth headers + Basic Auth (matches curl from support)
+        self._headers = {
+            'User-Agent': self.USER_AGENT,
+            'X-Eniscope-API': self.api_key,
+            'Authorization': f'Basic {auth_b64}',
+            'Accept': 'application/json',
+        }
     
     def authenticate(self) -> List[Dict]:
         """Authenticate and return organizations list."""
         if self.cached_organizations:
             return self.cached_organizations
         
-        auth_string = f"{self.email}:{self.password_md5}"
-        auth_b64 = base64.b64encode(auth_string.encode()).decode()
-        
-        headers = {
-            'Authorization': f'Basic {auth_b64}',
-            'X-Eniscope-API': self.api_key,
-            'Accept': 'text/json'
-        }
-        
-        response = requests.get(f'{self.base_url}/organizations', headers=headers)
+        response = requests.get(
+            f'{self.base_url}/organizations',
+            headers=self._headers,
+            timeout=30,
+        )
         response.raise_for_status()
         
         self.session_token = response.headers.get('x-eniscope-token') or response.headers.get('X-Eniscope-Token')
@@ -68,16 +104,15 @@ class EniscopeClient:
         return self.cached_organizations
     
     def _make_request_with_retry(self, url: str, params: Dict = None, retries: int = 3) -> requests.Response:
-        """Make request with exponential backoff retry."""
-        headers = {
-            'X-Eniscope-API': self.api_key,
-            'X-Eniscope-Token': self.session_token,
-            'Accept': 'text/json'
-        }
-        
+        """Make request with Basic Auth header and exponential backoff."""
         for attempt in range(retries):
             try:
-                response = requests.get(url, params=params, headers=headers)
+                response = requests.get(
+                    url,
+                    params=params or {},
+                    headers=self._headers,
+                    timeout=30,
+                )
                 response.raise_for_status()
                 return response
             
@@ -111,8 +146,10 @@ class EniscopeClient:
         return []
     
     def get_readings(self, channel_id: int, start_date: str, end_date: str, 
-                     fields: List[str] = None, resolution: int = 900) -> List[Dict]:
-        """Get readings for a channel."""
+                     fields: List[str] = None, resolution: int = None) -> List[Dict]:
+        """Get readings for a channel. Resolution default 15 min (900s), configurable."""
+        if resolution is None:
+            resolution = DEFAULT_RESOLUTION
         if fields is None:
             fields = ['E', 'P', 'V', 'I', 'PF']
         
@@ -283,71 +320,95 @@ class PostgresDB:
             return cur.fetchone()[0]
 
 
-def ingest_data(site_id: str, days: int):
-    """Main ingestion function."""
+def ingest_data(
+    site_id: str,
+    days: Optional[int] = None,
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+    resolution: Optional[int] = None,
+):
+    """Main ingestion function. Use either (start_date, end_date) or days."""
+    res = resolution if resolution is not None else DEFAULT_RESOLUTION
+    use_explicit_range = start_date is not None and end_date is not None
+
+    if use_explicit_range:
+        if start_date > end_date:
+            print("❌ --start-date must be on or before --end-date")
+            sys.exit(1)
+        num_days = (end_date - start_date).days + 1
+        range_label = f"{start_date} → {end_date} ({num_days} days)"
+    else:
+        days = days if days is not None else 90
+        end_dt = datetime.now()
+        start_dt = end_dt - timedelta(days=days)
+        start_date = start_dt.date()
+        end_date = end_dt.date()
+        range_label = f"last {days} days (→ {end_date})"
+
     print("🌐 Eniscope → PostgreSQL Data Ingestion\n")
     print(f"📊 Site ID: {site_id}")
-    print(f"📅 Days to fetch: {days}\n")
-    
+    print(f"📅 Range: {range_label}")
+    print(f"📐 Resolution: {res}s\n")
+
     # Check environment
     db_url = os.getenv('DATABASE_URL')
     if not db_url:
         print("❌ DATABASE_URL not found in .env")
         sys.exit(1)
-    
+
     # Initialize clients
     client = EniscopeClient()
-    
+
     try:
         # Authenticate
         orgs = client.authenticate()
         print("✅ Authenticated with Eniscope\n")
-        
+
         # Get organization
         print("📋 Fetching organization...")
         org = None
         if isinstance(orgs, list):
-            org = next((o for o in orgs if str(o.get('organization_id') or o.get('id')) == site_id), 
+            org = next((o for o in orgs if str(o.get('organization_id') or o.get('id')) == site_id),
                       orgs[0] if orgs else None)
         elif isinstance(orgs, dict):
             orgs_list = orgs.get('organizations') or orgs.get('data') or [orgs]
-            org = next((o for o in orgs_list if str(o.get('organization_id') or o.get('id')) == site_id), 
+            org = next((o for o in orgs_list if str(o.get('organization_id') or o.get('id')) == site_id),
                       orgs_list[0] if orgs_list else None)
-        
+
         if not org:
             print(f"❌ Organization {site_id} not found")
             sys.exit(1)
-        
+
         org_name = org.get('organization_name') or org.get('name') or f"Site {site_id}"
         print(f"✅ Organization: {org_name}\n")
-        
+
         # Connect to database
         with PostgresDB(db_url) as db:
             print("✅ Connected to PostgreSQL\n")
-            
+
             # Store organization
             db.upsert_organization(site_id, org_name)
-            
+
             # Get channels
             print("🔌 Fetching channels...")
             channels = client.get_channels(site_id)
             print(f"✅ Found {len(channels)} channels\n")
-            
+
             # Store channels and devices
             valid_channels = []
             for channel in channels:
                 channel_id = channel.get('channelId') or channel.get('dataChannelId')
                 channel_name = channel.get('channelName') or channel.get('name') or f"Channel {channel_id}"
-                
+
                 if not channel_id:
                     continue
-                
+
                 # Extract device information
                 device_id = channel.get('deviceId')
                 device_name = channel.get('deviceName')
                 device_type = channel.get('deviceTypeName') or channel.get('deviceType')
                 uuid = channel.get('uuId') or channel.get('uuid')
-                
+
                 # Store device if present
                 if device_id:
                     db.upsert_device(
@@ -357,62 +418,78 @@ def ingest_data(site_id: str, days: int):
                         uuid or '',
                         site_id
                     )
-                
+
                 # Store channel with device link
-                if db.upsert_channel(int(channel_id), channel_name, site_id, 
+                if db.upsert_channel(int(channel_id), channel_name, site_id,
                                     int(device_id) if device_id else None):
                     valid_channels.append({
                         'id': int(channel_id),
                         'name': channel_name
                     })
-            
+
             print(f"✅ {len(valid_channels)} valid channels stored\n")
-            
-            # Calculate date range
-            end_date = datetime.now()
-            start_date = end_date - timedelta(days=days)
-            date_range = f"{start_date.date()}/{end_date.date()}"
-            
-            print(f"📅 Date range: {date_range}\n")
             print("📥 Fetching readings...\n")
-            
-            # Fetch and store readings
+
             total_readings = 0
             start_time = time.time()
-            
-            for i, channel in enumerate(valid_channels, 1):
-                print(f"   [{i}/{len(valid_channels)}] {channel['name']}... ", end='', flush=True)
-                
-                try:
-                    readings = client.get_readings(
-                        channel['id'],
-                        start_date.isoformat(),
-                        end_date.isoformat(),
-                        fields=['E', 'P', 'V', 'I', 'PF'],
-                        resolution=900  # 15 minutes
-                    )
-                    
-                    inserted = db.insert_readings(channel['id'], readings)
-                    total_readings += inserted
-                    
-                    print(f"✅ {inserted:,} readings")
-                    
-                    # Delay to avoid rate limiting
-                    time.sleep(1.5)
-                    
-                except Exception as e:
-                    print(f"❌ {e}")
-            
+
+            if use_explicit_range:
+                # Iterate day-by-day over the explicit range (backfill-friendly)
+                current = start_date
+                day_count = 0
+                while current <= end_date:
+                    day_start = datetime.combine(current, datetime.min.time())
+                    day_end = day_start + timedelta(days=1) - timedelta(microseconds=1)
+                    day_count += 1
+                    for i, channel in enumerate(valid_channels, 1):
+                        try:
+                            readings = client.get_readings(
+                                channel['id'],
+                                day_start.isoformat(),
+                                day_end.isoformat(),
+                                fields=['E', 'P', 'V', 'I', 'PF'],
+                                resolution=res
+                            )
+                            inserted = db.insert_readings(channel['id'], readings)
+                            total_readings += inserted
+                            time.sleep(1.5)
+                        except Exception as e:
+                            print(f"   [{current}] {channel['name']}: ❌ {e}")
+                    if day_count % 10 == 0 or current == end_date:
+                        print(f"   … through {current} ({total_readings:,} readings so far)")
+                    current += timedelta(days=1)
+            else:
+                # Single range: last N days (original behavior)
+                start_dt = datetime.combine(start_date, datetime.min.time())
+                end_dt = datetime.combine(end_date, datetime.min.time()) + timedelta(days=1) - timedelta(microseconds=1)
+
+                for i, channel in enumerate(valid_channels, 1):
+                    print(f"   [{i}/{len(valid_channels)}] {channel['name']}... ", end='', flush=True)
+                    try:
+                        readings = client.get_readings(
+                            channel['id'],
+                            start_dt.isoformat(),
+                            end_dt.isoformat(),
+                            fields=['E', 'P', 'V', 'I', 'PF'],
+                            resolution=res
+                        )
+                        inserted = db.insert_readings(channel['id'], readings)
+                        total_readings += inserted
+                        print(f"✅ {inserted:,} readings")
+                        time.sleep(1.5)
+                    except Exception as e:
+                        print(f"❌ {e}")
+
             duration = time.time() - start_time
-            
+
             print(f"\n✅ Ingestion complete!")
             print(f"   Total readings: {total_readings:,}")
             print(f"   Duration: {duration:.1f}s\n")
-            
+
             # Verify
             total_in_db = db.get_total_readings()
             print(f"📊 Total readings in database: {total_in_db:,}\n")
-            
+
             # Refresh materialized views so analytics stay current
             try:
                 from govern.refresh_views import refresh_materialized_views
@@ -423,12 +500,12 @@ def ingest_data(site_id: str, days: int):
                     print("   ⚠️  Some view refreshes skipped or failed.\n")
             except Exception as e:
                 print(f"   ⚠️  View refresh skipped: {e}\n")
-            
+
             print("💡 Next steps:")
             print("   1. Enable TimescaleDB: See docs/setup/NEON_SETUP_GUIDE.md")
             print("   2. Set up daily sync: Add to crontab")
             print("   3. Query your data with Python!")
-    
+
     except Exception as e:
         print(f"\n❌ Error: {e}")
         import traceback
@@ -436,13 +513,62 @@ def ingest_data(site_id: str, days: int):
         sys.exit(1)
 
 
+def _parse_date(s: str) -> date:
+    """Parse YYYY-MM-DD to date."""
+    try:
+        return datetime.strptime(s.strip(), '%Y-%m-%d').date()
+    except ValueError:
+        raise ValueError(f"Invalid date '{s}'; use YYYY-MM-DD.")
+
+
 def main():
     parser = argparse.ArgumentParser(description='Ingest Eniscope data to PostgreSQL')
     parser.add_argument('--site', default='23271', help='Site ID (default: 23271)')
-    parser.add_argument('--days', type=int, default=90, help='Days of data to fetch (default: 90)')
-    
+    parser.add_argument(
+        '--days',
+        type=int,
+        default=None,
+        help='Days of data to fetch from today (default: 90). Ignored if --start-date/--end-date set.'
+    )
+    parser.add_argument(
+        '--start-date',
+        metavar='YYYY-MM-DD',
+        default=None,
+        help='Start of date window (use with --end-date for backfill).'
+    )
+    parser.add_argument(
+        '--end-date',
+        metavar='YYYY-MM-DD',
+        default=None,
+        help='End of date window (use with --start-date for backfill).'
+    )
+    parser.add_argument(
+        '--resolution',
+        type=int,
+        default=None,
+        help='Resolution in seconds (default: 900 = 15 min). Override with ENISCOPE_RESOLUTION.'
+    )
+
     args = parser.parse_args()
-    ingest_data(args.site, args.days)
+
+    # Logic priority: explicit range overrides --days
+    start_date = None
+    end_date = None
+    if args.start_date is not None or args.end_date is not None:
+        if args.start_date is None or args.end_date is None:
+            print("❌ Provide both --start-date and --end-date for a date range.")
+            sys.exit(1)
+        start_date = _parse_date(args.start_date)
+        end_date = _parse_date(args.end_date)
+    days = args.days if args.days is not None else 90
+
+    ingest_data(
+        site_id=args.site,
+        days=days,
+        start_date=start_date,
+        end_date=end_date,
+        resolution=args.resolution,
+    )
 
 
 if __name__ == '__main__':
