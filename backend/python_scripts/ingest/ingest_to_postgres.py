@@ -34,8 +34,9 @@ _PKG_ROOT = Path(__file__).resolve().parent.parent
 _PROJECT_ROOT = _PKG_ROOT.parent.parent
 if str(_PKG_ROOT) not in sys.path:
     sys.path.insert(0, str(_PKG_ROOT))
-# Override=True ensures we reload the latest .env (matches debug script)
-load_dotenv(_PROJECT_ROOT / '.env', override=True)
+# override=False: .env fills in missing vars but won't clobber env vars
+# already set by the OS / GitHub Actions secrets.
+load_dotenv(_PROJECT_ROOT / '.env', override=False)
 
 # Default resolution in seconds (1 hour). Hourly is the most stable for the API.
 # Override via ENISCOPE_RESOLUTION env var or --resolution CLI flag.
@@ -235,7 +236,7 @@ class EniscopeClient:
         if resolution is None:
             resolution = DEFAULT_RESOLUTION
         if fields is None:
-            fields = ['E', 'P', 'V']
+            fields = ['E', 'P', 'V', 'I', 'PF']
 
         # 1. Convert 'YYYY-MM-DD' string to Unix Timestamps (Start & End of day)
         dt_start = datetime.strptime(date_str, "%Y-%m-%d")
@@ -434,7 +435,9 @@ class PostgresDB:
                         INSERT INTO readings (channel_id, timestamp, energy_kwh, power_kw,
                                             voltage_v, current_a, power_factor)
                         VALUES (%s, %s, %s, %s, %s, %s, %s)
-                        ON CONFLICT (channel_id, timestamp) DO NOTHING
+                        ON CONFLICT (channel_id, timestamp) DO UPDATE SET
+                            current_a = COALESCE(EXCLUDED.current_a, readings.current_a),
+                            power_factor = COALESCE(EXCLUDED.power_factor, readings.power_factor)
                     """, valid_batch)
                     
                     inserted += cur.rowcount
@@ -498,7 +501,7 @@ def ingest_data(
     # Check environment
     db_url = os.getenv('DATABASE_URL')
     if not db_url:
-        print("❌ DATABASE_URL not found in .env")
+        print("❌ DATABASE_URL not set. Add it to .env (local) or GitHub Secrets (CI).")
         sys.exit(1)
 
     # Initialize client
@@ -667,7 +670,7 @@ def ingest_data(
                         readings = client.get_readings(
                             ch['id'],
                             date_str,
-                            fields=['E', 'P', 'V'],
+                            fields=['E', 'P', 'V', 'I', 'PF'],
                             resolution=res,
                         )
                         fetched = len(readings)
