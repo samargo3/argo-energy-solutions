@@ -98,6 +98,7 @@ jobs:
               --site "$SITE" \
               --start-date "$CURRENT" \
               --end-date "$CHUNK_END" \
+              --resolution 3600 \
               $WCDS_FLAG
 
             echo "✅ Chunk $CHUNK_NUM complete"
