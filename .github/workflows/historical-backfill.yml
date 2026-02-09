@@ -1,0 +1,114 @@
+# Historical backfill: ingest an exact date window into Postgres.
+# Trigger from Actions → "Historical backfill" → Run workflow.
+#
+# For WCDS Wilson Center, hardware was installed 2025-04-29.
+# Full backfill: run monthly chunks from 2025-04-29 → today with --wcds-only.
+name: Historical backfill
+
+on:
+  workflow_dispatch:
+    inputs:
+      START_DATE:
+        description: 'Start date (YYYY-MM-DD)'
+        required: true
+        default: '2025-04-29'
+      END_DATE:
+        description: 'End date (YYYY-MM-DD)'
+        required: true
+      SITE_ID:
+        description: 'Eniscope site ID'
+        required: true
+        default: '23271'
+      WCDS_ONLY:
+        description: 'Only fetch WCDS Wilson Center channels?'
+        type: boolean
+        default: true
+      CHUNK_SIZE_DAYS:
+        description: 'Days per chunk (keeps API calls manageable)'
+        required: true
+        default: '30'
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    # 8 WCDS channels × 1s/request × 24 readings/day × 30 days = ~960 requests per chunk
+    # Allow 180 min for large ranges (the script sleeps 1s between requests)
+    timeout-minutes: 180
+
+    env:
+      VITE_ENISCOPE_API_URL: ${{ secrets.VITE_ENISCOPE_API_URL }}
+      VITE_ENISCOPE_API_KEY: ${{ secrets.VITE_ENISCOPE_API_KEY }}
+      VITE_ENISCOPE_EMAIL: ${{ secrets.VITE_ENISCOPE_EMAIL }}
+      VITE_ENISCOPE_PASSWORD: ${{ secrets.VITE_ENISCOPE_PASSWORD }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests python-dotenv psycopg2-binary
+
+      - name: Run chunked backfill
+        run: |
+          set -e
+
+          START="${{ inputs.START_DATE }}"
+          END="${{ inputs.END_DATE }}"
+          CHUNK=${{ inputs.CHUNK_SIZE_DAYS }}
+          SITE="${{ inputs.SITE_ID }}"
+          WCDS_FLAG=""
+          if [ "${{ inputs.WCDS_ONLY }}" = "true" ]; then
+            WCDS_FLAG="--wcds-only"
+          fi
+
+          echo "═══════════════════════════════════════════════════"
+          echo "  Historical Backfill: $START → $END"
+          echo "  Chunk size: ${CHUNK} days"
+          echo "  WCDS only: ${{ inputs.WCDS_ONLY }}"
+          echo "═══════════════════════════════════════════════════"
+
+          # Loop through date range in chunks
+          CURRENT="$START"
+          CHUNK_NUM=1
+
+          while [ "$(date -d "$CURRENT" +%s 2>/dev/null || date -j -f "%Y-%m-%d" "$CURRENT" +%s)" -le \
+                  "$(date -d "$END" +%s 2>/dev/null || date -j -f "%Y-%m-%d" "$END" +%s)" ]; do
+
+            # Calculate chunk end (CURRENT + CHUNK days, capped at END)
+            CHUNK_END=$(date -d "$CURRENT + ${CHUNK} days" +%Y-%m-%d 2>/dev/null || \
+                        date -j -v+${CHUNK}d -f "%Y-%m-%d" "$CURRENT" +%Y-%m-%d)
+
+            # Cap at END date
+            if [ "$(date -d "$CHUNK_END" +%s 2>/dev/null || date -j -f "%Y-%m-%d" "$CHUNK_END" +%s)" -gt \
+                 "$(date -d "$END" +%s 2>/dev/null || date -j -f "%Y-%m-%d" "$END" +%s)" ]; then
+              CHUNK_END="$END"
+            fi
+
+            echo ""
+            echo "▶ Chunk $CHUNK_NUM: $CURRENT → $CHUNK_END"
+            python backend/python_scripts/ingest/ingest_to_postgres.py \
+              --site "$SITE" \
+              --start-date "$CURRENT" \
+              --end-date "$CHUNK_END" \
+              $WCDS_FLAG
+
+            echo "✅ Chunk $CHUNK_NUM complete"
+
+            # Advance to next chunk (day after CHUNK_END)
+            CURRENT=$(date -d "$CHUNK_END + 1 day" +%Y-%m-%d 2>/dev/null || \
+                      date -j -v+1d -f "%Y-%m-%d" "$CHUNK_END" +%Y-%m-%d)
+            CHUNK_NUM=$((CHUNK_NUM + 1))
+          done
+
+          echo ""
+          echo "═══════════════════════════════════════════════════"
+          echo "  ✅ All chunks complete!"
+          echo "═══════════════════════════════════════════════════"

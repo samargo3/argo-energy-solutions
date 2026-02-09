@@ -15,6 +15,10 @@ python-dotenv>=1.0.0
 # Date/time utilities
 python-dateutil>=2.8.2
 
+# Web API
+fastapi>=0.115.0
+uvicorn[standard]>=0.34.0
+
 # Optional: For advanced analytics
 scipy>=1.11.4  # Statistical functions
 matplotlib>=3.8.2  # Plotting (if needed)

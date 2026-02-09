@@ -37,7 +37,7 @@ jobs:
           VITE_ENISCOPE_PASSWORD: ${{ secrets.VITE_ENISCOPE_PASSWORD }}
           VITE_ENISCOPE_API_URL: https://core.eniscope.com
         run: |
-          python backend/python_scripts/ingest/ingest_to_postgres.py --site 23271 --days 7
+          python backend/python_scripts/ingest/ingest_to_postgres.py --site 23271 --days 3 --wcds-only
       
       - name: Run data validation
         env:

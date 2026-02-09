@@ -7,6 +7,7 @@ import CustomerPortal from './pages/CustomerPortal'
 import Reports from './pages/Reports'
 import WilsonCenterReport from './pages/WilsonCenterReport'
 import ApiTest from './pages/ApiTest'
+import EnergyHistory from './pages/EnergyHistory'
 import './App.css'
 
 function App() {
@@ -21,6 +22,7 @@ function App() {
           <Route path="reports" element={<Reports />} />
           <Route path="reports/wilson-center" element={<WilsonCenterReport />} />
           <Route path="api-test" element={<ApiTest />} />
+          <Route path="energy-history" element={<EnergyHistory />} />
         </Route>
       </Routes>
     </BrowserRouter>
