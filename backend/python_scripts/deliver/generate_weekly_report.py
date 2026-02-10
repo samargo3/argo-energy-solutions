@@ -184,8 +184,8 @@ class DatabaseDataFetcher:
                     'readings': readings,
                 })
         
-        # Calculate resolution (assume 15-minute = 900s)
-        resolution = 900
+        # Reading interval matches ingestion resolution (hourly = 3600s)
+        resolution = 3600
         
         return {
             'siteMetadata': site_metadata,

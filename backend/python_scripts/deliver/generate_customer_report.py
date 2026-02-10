@@ -855,16 +855,19 @@ def main():
         print("\n🔬 Running analytics...")
         config = DEFAULT_CONFIG
         
-        sensor_health = analyze_sensor_health_for_site(report_data, config, 900)
+        # Reading interval matches ingestion resolution (hourly = 3600s)
+        interval_seconds = 3600
+
+        sensor_health = analyze_sensor_health_for_site(report_data, config, interval_seconds)
         print(f"   ⚠️  Sensor health: {sensor_health['totalIssues']} issues")
-        
-        after_hours = analyze_after_hours_waste(report_data, baseline_data, config, 900)
+
+        after_hours = analyze_after_hours_waste(report_data, baseline_data, config, interval_seconds)
         print(f"   🌙 After-hours waste: {after_hours['summary']['totalExcessKwh']:.1f} kWh")
-        
-        anomalies = analyze_anomalies(report_data, baseline_data, config, 900)
+
+        anomalies = analyze_anomalies(report_data, baseline_data, config, interval_seconds)
         print(f"   📊 Anomalies: {anomalies['totalAnomalyEvents']} events")
-        
-        spikes = analyze_spikes(report_data, baseline_data, config, 900)
+
+        spikes = analyze_spikes(report_data, baseline_data, config, interval_seconds)
         print(f"   📈 Spikes: {spikes['totalSpikeEvents']} events")
         
         analytics_results = {
