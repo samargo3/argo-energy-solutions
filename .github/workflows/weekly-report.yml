@@ -55,8 +55,16 @@ jobs:
           path: reports/weekly-report-*.json
           retention-days: 90
       
-      - name: Notify on completion
-        if: success()
-        run: |
-          echo "Weekly report generated successfully!"
-          # Add notification logic here (email report, upload to S3, etc.)
+      - name: Create issue on failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const runUrl = `${context.payload.repository.html_url}/actions/runs/${context.runId}`;
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Weekly Report Failed — ${new Date().toISOString().slice(0,10)}`,
+              body: `The weekly energy report workflow failed.\n\n**Run:** [View logs](${runUrl})\n**Time:** ${new Date().toISOString()}\n\nPlease check the workflow logs and re-run manually if needed.`,
+              labels: ['pipeline-failure', 'automated']
+            })

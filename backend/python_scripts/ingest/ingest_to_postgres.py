@@ -69,10 +69,10 @@ SKIP_CHANNELS = {
 
 def _load_password_safely() -> str:
     """Load password from env; reject empty/missing values to avoid auth issues."""
-    raw = os.getenv('VITE_ENISCOPE_PASSWORD')
+    raw = os.getenv('ENISCOPE_PASSWORD') or os.getenv('VITE_ENISCOPE_PASSWORD')
     if not raw or not raw.strip():
         raise ValueError(
-            'VITE_ENISCOPE_PASSWORD is missing. Set it in .env (no credentials in code).'
+            'ENISCOPE_PASSWORD is missing. Set it in .env (no credentials in code).'
         )
     return raw.strip()
 
@@ -87,13 +87,13 @@ class EniscopeClient:
     )
     
     def __init__(self):
-        self.base_url = os.getenv('VITE_ENISCOPE_API_URL', 'https://core.eniscope.com').rstrip('/')
-        self.api_key = os.getenv('VITE_ENISCOPE_API_KEY')
-        self.email = os.getenv('VITE_ENISCOPE_EMAIL')
+        self.base_url = (os.getenv('ENISCOPE_API_URL') or os.getenv('VITE_ENISCOPE_API_URL', 'https://core.eniscope.com')).rstrip('/')
+        self.api_key = os.getenv('ENISCOPE_API_KEY') or os.getenv('VITE_ENISCOPE_API_KEY')
+        self.email = os.getenv('ENISCOPE_EMAIL') or os.getenv('VITE_ENISCOPE_EMAIL')
         self.password = _load_password_safely()
         
         if not all([self.api_key, self.email]):
-            raise ValueError('Missing required env: VITE_ENISCOPE_API_KEY, VITE_ENISCOPE_EMAIL')
+            raise ValueError('Missing required env: ENISCOPE_API_KEY, ENISCOPE_EMAIL')
         
         self.password_md5 = hashlib.md5(self.password.encode()).hexdigest()
         self.session_token = None

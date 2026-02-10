@@ -36,10 +36,10 @@ jobs:
     timeout-minutes: 180
 
     env:
-      VITE_ENISCOPE_API_URL: ${{ secrets.VITE_ENISCOPE_API_URL }}
-      VITE_ENISCOPE_API_KEY: ${{ secrets.VITE_ENISCOPE_API_KEY }}
-      VITE_ENISCOPE_EMAIL: ${{ secrets.VITE_ENISCOPE_EMAIL }}
-      VITE_ENISCOPE_PASSWORD: ${{ secrets.VITE_ENISCOPE_PASSWORD }}
+      ENISCOPE_API_URL: ${{ secrets.ENISCOPE_API_URL }}
+      ENISCOPE_API_KEY: ${{ secrets.ENISCOPE_API_KEY }}
+      ENISCOPE_EMAIL: ${{ secrets.ENISCOPE_EMAIL }}
+      ENISCOPE_PASSWORD: ${{ secrets.ENISCOPE_PASSWORD }}
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
     steps:

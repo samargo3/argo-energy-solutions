@@ -21,8 +21,9 @@ from typing import Optional
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Security, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import APIKeyHeader
 
 # ---------------------------------------------------------------------------
 # Environment
@@ -34,7 +35,24 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
     raise RuntimeError("DATABASE_URL is not set – check your .env file")
 
+API_SECRET_KEY = os.getenv("API_SECRET_KEY", "")
+
 MAX_ROWS = 5_000  # hard cap to protect the browser
+
+# ---------------------------------------------------------------------------
+# API Key Security
+# ---------------------------------------------------------------------------
+_api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+
+async def require_api_key(api_key: Optional[str] = Security(_api_key_header)):
+    """Validate X-API-Key header. Warn-only when key is not configured."""
+    if not API_SECRET_KEY:
+        # Development mode — no key configured, allow all requests
+        return api_key
+    if not api_key or api_key != API_SECRET_KEY:
+        raise HTTPException(status_code=401, detail="Unauthorized — valid X-API-Key header required")
+    return api_key
 
 # ---------------------------------------------------------------------------
 # App
@@ -83,6 +101,7 @@ def root():
 def energy_history(
     start_date: Optional[str] = Query("2025-11-05", description="Start date (YYYY-MM-DD)"),
     end_date: Optional[str] = Query("2026-02-05", description="End date (YYYY-MM-DD)"),
+    _key: str = Depends(require_api_key),
 ):
     """
     Return hourly-aggregated energy data for the entire site.

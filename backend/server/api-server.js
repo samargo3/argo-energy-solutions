@@ -21,15 +21,35 @@ import { dataQueryService } from '../src/services/data/queryService.js';
 const app = express();
 const PORT = process.env.API_PORT || 3001;
 
-// Eniscope API configuration
-const ENISCOPE_API_URL = process.env.VITE_ENISCOPE_API_URL || process.env.ENISCOPE_API_URL || 'https://core.eniscope.com';
-const ENISCOPE_API_KEY = process.env.VITE_ENISCOPE_API_KEY || process.env.ENISCOPE_API_KEY || '';
-const ENISCOPE_EMAIL = process.env.VITE_ENISCOPE_EMAIL || process.env.ENISCOPE_EMAIL || '';
-const ENISCOPE_PASSWORD = process.env.VITE_ENISCOPE_PASSWORD || process.env.ENISCOPE_PASSWORD || '';
+// Eniscope API configuration (server-side only — never use VITE_ prefix)
+const ENISCOPE_API_URL = process.env.ENISCOPE_API_URL || process.env.VITE_ENISCOPE_API_URL || 'https://core.eniscope.com';
+const ENISCOPE_API_KEY = process.env.ENISCOPE_API_KEY || process.env.VITE_ENISCOPE_API_KEY || '';
+const ENISCOPE_EMAIL = process.env.ENISCOPE_EMAIL || process.env.VITE_ENISCOPE_EMAIL || '';
+const ENISCOPE_PASSWORD = process.env.ENISCOPE_PASSWORD || process.env.VITE_ENISCOPE_PASSWORD || '';
+
+// API authentication key (shared secret)
+const API_SECRET_KEY = process.env.API_SECRET_KEY || '';
 
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// ── API Key authentication middleware ──
+// Health endpoint is public; everything under /api requires X-API-Key header.
+function requireApiKey(req, res, next) {
+  if (!API_SECRET_KEY) {
+    // If no key is configured, warn but allow (development mode)
+    console.warn('⚠️  API_SECRET_KEY not set — all requests are allowed. Set it in .env for production.');
+    return next();
+  }
+  const provided = req.headers['x-api-key'];
+  if (!provided || provided !== API_SECRET_KEY) {
+    return res.status(401).json({ error: 'Unauthorized — valid X-API-Key header required' });
+  }
+  next();
+}
+
+app.use('/api', requireApiKey);
 
 // Eniscope API client helper
 class EniscopeProxy {

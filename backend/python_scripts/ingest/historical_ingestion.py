@@ -50,13 +50,13 @@ class EniscopeHistoricalClient:
     """
     
     def __init__(self):
-        self.base_url = os.getenv('VITE_ENISCOPE_API_URL', 'https://core.eniscope.com').rstrip('/')
-        self.api_key = os.getenv('VITE_ENISCOPE_API_KEY')
-        self.email = os.getenv('VITE_ENISCOPE_EMAIL')
-        self.password = os.getenv('VITE_ENISCOPE_PASSWORD')
+        self.base_url = (os.getenv('ENISCOPE_API_URL') or os.getenv('VITE_ENISCOPE_API_URL', 'https://core.eniscope.com')).rstrip('/')
+        self.api_key = os.getenv('ENISCOPE_API_KEY') or os.getenv('VITE_ENISCOPE_API_KEY')
+        self.email = os.getenv('ENISCOPE_EMAIL') or os.getenv('VITE_ENISCOPE_EMAIL')
+        self.password = os.getenv('ENISCOPE_PASSWORD') or os.getenv('VITE_ENISCOPE_PASSWORD')
         
         if not all([self.api_key, self.email, self.password]):
-            raise ValueError('❌ Missing required environment variables (API_KEY, EMAIL, PASSWORD)')
+            raise ValueError('Missing required environment variables (ENISCOPE_API_KEY, ENISCOPE_EMAIL, ENISCOPE_PASSWORD)')
         
         self.password_md5 = hashlib.md5(self.password.encode()).hexdigest()
         self.session_token = None
