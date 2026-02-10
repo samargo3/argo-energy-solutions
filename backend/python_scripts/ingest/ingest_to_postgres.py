@@ -30,6 +30,9 @@ import psycopg2
 from psycopg2.extras import execute_batch
 from dotenv import load_dotenv
 
+from lib.logging_config import configure_logging, get_logger
+from lib.sentry_client import init_sentry, capture_exception
+
 _PKG_ROOT = Path(__file__).resolve().parent.parent
 _PROJECT_ROOT = _PKG_ROOT.parent.parent
 if str(_PKG_ROOT) not in sys.path:
@@ -65,6 +68,12 @@ SKIP_CHANNELS = {
     162141,  # Argo Home Test Site — test channel, no readings
     162277,  # Air Sense_Main Kitchen_WCDS_Wilson — sensor type, no E/P/V fields
 }
+
+
+# Configure logging / Sentry once per process
+configure_logging()
+logger = get_logger(__name__)
+init_sentry(service_name="ingest")
 
 
 def _load_password_safely() -> str:
@@ -781,11 +790,27 @@ def main():
     end_date = None
     if args.start_date is not None or args.end_date is not None:
         if args.start_date is None or args.end_date is None:
-            print("❌ Provide both --start-date and --end-date for a date range.")
+            logger.error(
+                "Invalid date range: both --start-date and --end-date are required.",
+                extra={"start_date": args.start_date, "end_date": args.end_date},
+            )
             sys.exit(1)
         start_date = _parse_date(args.start_date)
         end_date = _parse_date(args.end_date)
     days = args.days if args.days is not None else 90
+
+    logger.info(
+        "Starting ingestion run",
+        extra={
+            "site_id": args.site,
+            "days": days,
+            "start_date": args.start_date,
+            "end_date": args.end_date,
+            "resolution": args.resolution,
+            "channel_ids": args.channel,
+            "wcds_only": args.wcds_only,
+        },
+    )
 
     ingest_data(
         site_id=args.site,
@@ -799,4 +824,9 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except Exception as exc:
+        logger.exception("Unhandled exception in ingest_to_postgres")
+        capture_exception(exc)
+        raise

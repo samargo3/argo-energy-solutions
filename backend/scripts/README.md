@@ -1,3 +1,18 @@
+# Legacy Node.js Scripts (DEPRECATED)
+
+> **These scripts are deprecated.** The production pipeline now lives in
+> `backend/python_scripts/` and follows the 4-stage data governance model
+> (Ingest -> Govern -> Analyze -> Deliver). See `backend/python_scripts/README.md`.
+>
+> These scripts are retained for reference only and will be removed in a future release.
+> Do NOT add new functionality here.
+
+---
+
+_Original README below for historical context._
+
+---
+
 # Analysis Scripts
 
 Scripts for connecting to the Eniscope Core API and analyzing energy data.

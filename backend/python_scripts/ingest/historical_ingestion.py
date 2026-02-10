@@ -28,9 +28,16 @@ import psycopg2
 from psycopg2.extras import execute_batch, RealDictCursor
 from dotenv import load_dotenv
 
+from lib.logging_config import configure_logging, get_logger
+from lib.sentry_client import init_sentry, capture_exception
+
 _PKG_ROOT = Path(__file__).resolve().parent.parent
 _PROJECT_ROOT = _PKG_ROOT.parent.parent
 load_dotenv(_PROJECT_ROOT / '.env')
+
+configure_logging()
+logger = get_logger(__name__)
+init_sentry(service_name="ingest-historical")
 
 
 class DataIntegrityError(Exception):
@@ -744,14 +751,31 @@ def main():
     )
     
     args = parser.parse_args()
-    
+
+    logger.info(
+        "Starting historical ingestion",
+        extra={
+            "site_id": args.site,
+            "start_date": args.start_date,
+            "end_date": args.end_date,
+            "validate_data": not args.no_validate,
+        },
+    )
+
     return run_historical_ingestion(
         site_id=args.site,
         start_date=args.start_date,
         end_date=args.end_date,
-        validate_data=not args.no_validate
+        validate_data=not args.no_validate,
     )
 
 
 if __name__ == '__main__':
-    sys.exit(main())
+    try:
+        code = main()
+    except Exception as exc:
+        logger.exception("Unhandled exception in historical_ingestion")
+        capture_exception(exc)
+        raise
+    else:
+        sys.exit(code)

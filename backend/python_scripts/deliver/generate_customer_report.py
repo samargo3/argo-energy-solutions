@@ -33,6 +33,8 @@ if str(_PKG_ROOT) not in sys.path:
     sys.path.insert(0, str(_PKG_ROOT))
 load_dotenv(_PROJECT_ROOT / '.env')
 
+from lib.logging_config import configure_logging, get_logger
+from lib.sentry_client import init_sentry, capture_exception
 from lib import (
     get_last_complete_week,
     get_baseline_period,
@@ -46,6 +48,10 @@ from analyze import (
     analyze_spikes,
     generate_quick_wins,
 )
+
+configure_logging()
+logger = get_logger(__name__)
+init_sentry(service_name="deliver-customer-report")
 
 
 def fetch_report_data(conn, site_id, start_date, end_date):
@@ -823,13 +829,15 @@ def main():
     
     args = parser.parse_args()
     
-    print("🎯 Generating Customer-Ready Weekly Report\n")
-    print(f"Site ID: {args.site}")
+    logger.info(
+        "Generating customer-ready weekly report",
+        extra={"site_id": args.site, "output": args.output, "json": args.json},
+    )
     
     # Get database connection
     db_url = os.getenv('DATABASE_URL')
     if not db_url:
-        print("❌ DATABASE_URL not found in environment")
+        logger.error("DATABASE_URL not found in environment")
         return 1
     
     try:
@@ -838,37 +846,49 @@ def main():
         # Get report period
         period = get_last_complete_week('America/New_York')
         baseline = get_baseline_period(period['start'], 4)
-        
-        print(f"\n📅 Report Period: {period['start'].date()} to {period['end'].date()}")
-        print(f"📊 Baseline: {baseline['start'].date()} to {baseline['end'].date()}")
+
+        logger.info(
+            "Computed report period and baseline",
+            extra={
+                "period_start": period['start'].isoformat(),
+                "period_end": period['end'].isoformat(),
+                "baseline_start": baseline['start'].isoformat(),
+                "baseline_end": baseline['end'].isoformat(),
+            },
+        )
         
         # Fetch data
-        print("\n📡 Fetching data from database...")
         org_name, report_data = fetch_report_data(conn, args.site, period['start'], period['end'])
         _, baseline_data = fetch_report_data(conn, args.site, baseline['start'], baseline['end'])
-        
-        print(f"✅ Fetched {len(report_data)} channels")
-        print(f"   Report: {sum(len(c['readings']) for c in report_data):,} readings")
-        print(f"   Baseline: {sum(len(c['readings']) for c in baseline_data):,} readings")
+        logger.info(
+            "Fetched data for report and baseline",
+            extra={
+                "channels": len(report_data),
+                "report_readings": sum(len(c['readings']) for c in report_data),
+                "baseline_readings": sum(len(c['readings']) for c in baseline_data),
+            },
+        )
         
         # Run analytics
-        print("\n🔬 Running analytics...")
         config = DEFAULT_CONFIG
         
         # Reading interval matches ingestion resolution (hourly = 3600s)
         interval_seconds = 3600
 
         sensor_health = analyze_sensor_health_for_site(report_data, config, interval_seconds)
-        print(f"   ⚠️  Sensor health: {sensor_health['totalIssues']} issues")
-
         after_hours = analyze_after_hours_waste(report_data, baseline_data, config, interval_seconds)
-        print(f"   🌙 After-hours waste: {after_hours['summary']['totalExcessKwh']:.1f} kWh")
-
         anomalies = analyze_anomalies(report_data, baseline_data, config, interval_seconds)
-        print(f"   📊 Anomalies: {anomalies['totalAnomalyEvents']} events")
-
         spikes = analyze_spikes(report_data, baseline_data, config, interval_seconds)
-        print(f"   📈 Spikes: {spikes['totalSpikeEvents']} events")
+
+        logger.info(
+            "Analytics complete",
+            extra={
+                "sensor_health_issues": sensor_health.get('totalIssues'),
+                "after_hours_excess_kwh": after_hours.get('summary', {}).get('totalExcessKwh'),
+                "anomaly_events": anomalies.get('totalAnomalyEvents'),
+                "spike_events": spikes.get('totalSpikeEvents'),
+            },
+        )
         
         analytics_results = {
             'sensorHealth': sensor_health,
@@ -878,7 +898,10 @@ def main():
         }
         
         quick_wins = generate_quick_wins(analytics_results, config)
-        print(f"   💡 Quick wins: {len(quick_wins)} recommendations")
+        logger.info(
+            "Generated quick wins",
+            extra={"quick_wins_count": len(quick_wins)},
+        )
         
         # Build complete data structure
         report_data_dict = {
@@ -901,8 +924,6 @@ def main():
         }
         
         # Generate HTML report
-        print("\n📄 Generating HTML report...")
-        
         if args.output:
             output_path = args.output
         else:
@@ -913,29 +934,31 @@ def main():
         os.makedirs(os.path.dirname(output_path) if os.path.dirname(output_path) else 'reports', exist_ok=True)
         
         html_path = generate_html_report(report_data_dict, org_name, report_data_dict['period'], output_path)
-        
-        print(f"✅ HTML report saved: {html_path}")
+        logger.info("HTML report saved", extra={"output_path": str(html_path)})
         
         # Save JSON if requested
         if args.json:
             json_path = output_path.replace('.html', '.json')
             with open(json_path, 'w') as f:
                 json.dump(report_data_dict, f, indent=2, default=str)
-            print(f"✅ JSON report saved: {json_path}")
-        
-        print("\n🎉 Report generation complete!")
-        print(f"\n📧 Customer-ready report: {html_path}")
-        print("   Ready to send to Facilities/Operations and Energy Manager")
+            logger.info("JSON report saved", extra={"json_path": str(json_path)})
         
         conn.close()
+        logger.info("Customer report generation complete", extra={"site_id": args.site})
         return 0
         
     except Exception as e:
-        print(f"\n❌ Error: {e}")
-        import traceback
-        traceback.print_exc()
+        logger.exception("Error generating customer report")
+        capture_exception(e)
         return 1
 
 
 if __name__ == '__main__':
-    sys.exit(main())
+    try:
+        code = main()
+    except Exception as exc:
+        logger.exception("Unhandled exception in generate_customer_report")
+        capture_exception(exc)
+        raise
+    else:
+        sys.exit(code)

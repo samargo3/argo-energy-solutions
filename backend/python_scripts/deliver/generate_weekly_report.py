@@ -35,6 +35,8 @@ if str(_PKG_ROOT) not in sys.path:
     sys.path.insert(0, str(_PKG_ROOT))
 load_dotenv(_PROJECT_ROOT / '.env')
 
+from lib.logging_config import configure_logging, get_logger
+from lib.sentry_client import init_sentry, capture_exception
 from lib import (
     get_last_complete_week,
     get_baseline_period,
@@ -49,6 +51,10 @@ from analyze import (
     analyze_spikes,
     generate_quick_wins,
 )
+
+configure_logging()
+logger = get_logger(__name__)
+init_sentry(service_name="deliver-weekly-report")
 
 
 class DatabaseDataFetcher:
@@ -498,7 +504,18 @@ def main():
     parser.add_argument('--html', action='store_true', help='Also generate HTML report')
     
     args = parser.parse_args()
-    
+
+    logger.info(
+        "Generating weekly brief",
+        extra={
+            "site_id": args.site,
+            "start": args.start,
+            "end": args.end,
+            "out": args.out,
+            "timezone": args.timezone,
+            "html": args.html,
+        },
+    )
     # Determine report period
     if args.start and args.end:
         start_date = datetime.fromisoformat(args.start)
@@ -527,16 +544,23 @@ def main():
             'config': config,
             'output_path': output_path,
         })
-        
-        print(f"✅ Report generated successfully!")
+
+        logger.info(
+            "Weekly brief generated successfully",
+            extra={"site_id": args.site, "output_path": output_path},
+        )
         print(f"\n💡 Review the JSON file for detailed analytics:\n   {output_path}\n")
-        
+
     except Exception as e:
-        print(f"\n❌ Error generating report: {e}")
-        import traceback
-        traceback.print_exc()
+        logger.exception("Error generating weekly brief")
+        capture_exception(e)
         sys.exit(1)
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except Exception as exc:
+        logger.exception("Unhandled exception in generate_weekly_report")
+        capture_exception(exc)
+        sys.exit(1)

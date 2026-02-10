@@ -1,28 +1,54 @@
 #!/bin/bash
 # Daily Sync Script for Argo Energy Solutions
-# Runs Python ingestion for the most recent day
+# Iterates over all active sites from the sites table and runs ingestion + validation.
 
-# Navigate to project directory
-cd /Users/sargo/cursor-repo/projects/argo-energy-solutions
+set -euo pipefail
 
-# Log start time
-echo "========================================" >> logs/daily_sync.log
-echo "🕐 Daily sync started: $(date)" >> logs/daily_sync.log
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PKG_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+PROJECT_ROOT="$(cd "$PKG_ROOT/../.." && pwd)"
+LOG_DIR="$PROJECT_ROOT/logs"
+mkdir -p "$LOG_DIR"
+LOG_FILE="$LOG_DIR/daily_sync.log"
 
-# Activate virtual environment and run ingestion
-source venv/bin/activate
+echo "========================================" >> "$LOG_FILE"
+echo "Daily sync started: $(date)" >> "$LOG_FILE"
 
-# Ingest the last 2 days (to handle any gaps or late-arriving data)
-python backend/python_scripts/ingest/ingest_to_postgres.py --site 23271 --days 2 >> logs/daily_sync.log 2>&1
-
-# Check exit code
-if [ $? -eq 0 ]; then
-    echo "✅ Daily sync completed successfully: $(date)" >> logs/daily_sync.log
-else
-    echo "❌ Daily sync failed: $(date)" >> logs/daily_sync.log
+# Activate virtual environment if available
+if [ -f "$PROJECT_ROOT/venv/bin/activate" ]; then
+    source "$PROJECT_ROOT/venv/bin/activate"
 fi
 
-echo "" >> logs/daily_sync.log
+# Discover active sites from the database
+SITES=$(python "$PKG_ROOT/operations/list_active_sites.py" 2>>"$LOG_FILE")
 
-# Deactivate virtual environment
-deactivate
+if [ -z "$SITES" ]; then
+    echo "No active sites found — nothing to sync" >> "$LOG_FILE"
+    exit 0
+fi
+
+FAILED=0
+
+for SITE_ID in $SITES; do
+    echo "--- Syncing site $SITE_ID ---" >> "$LOG_FILE"
+
+    python "$PKG_ROOT/ingest/ingest_to_postgres.py" \
+        --site "$SITE_ID" --days 2 >> "$LOG_FILE" 2>&1 \
+    && echo "  Site $SITE_ID ingestion OK" >> "$LOG_FILE" \
+    || { echo "  Site $SITE_ID ingestion FAILED" >> "$LOG_FILE"; FAILED=1; }
+done
+
+# Run data validation (covers all sites)
+echo "--- Running data validation ---" >> "$LOG_FILE"
+python "$PKG_ROOT/govern/validate_data.py" >> "$LOG_FILE" 2>&1 \
+    && echo "  Validation OK" >> "$LOG_FILE" \
+    || { echo "  Validation FAILED" >> "$LOG_FILE"; FAILED=1; }
+
+if [ $FAILED -eq 0 ]; then
+    echo "Daily sync completed successfully: $(date)" >> "$LOG_FILE"
+else
+    echo "Daily sync finished with errors: $(date)" >> "$LOG_FILE"
+    exit 1
+fi
+
+echo "" >> "$LOG_FILE"

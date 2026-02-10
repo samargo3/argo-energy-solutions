@@ -2,6 +2,17 @@
 Utility libraries for Python analytics
 """
 
+from .site_registry import (
+    get_active_sites,
+    get_site,
+    get_active_site_ids,
+)
+
+from .logging_config import (
+    configure_logging,
+    get_logger,
+)
+
 from .stats_utils import (
     calculate_stats,
     percentile,
@@ -32,6 +43,13 @@ from .date_utils import (
 )
 
 __all__ = [
+    # site_registry
+    'get_active_sites',
+    'get_site',
+    'get_active_site_ids',
+    # logging_config
+    'configure_logging',
+    'get_logger',
     # stats_utils
     'calculate_stats',
     'percentile',

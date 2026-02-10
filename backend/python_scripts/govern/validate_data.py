@@ -18,9 +18,16 @@ from dotenv import load_dotenv
 
 from pathlib import Path
 
+from lib.logging_config import configure_logging, get_logger
+from lib.sentry_client import init_sentry, capture_exception
+
 _PKG_ROOT = Path(__file__).resolve().parent.parent
 _PROJECT_ROOT = _PKG_ROOT.parent.parent
 load_dotenv(_PROJECT_ROOT / '.env')
+
+configure_logging()
+logger = get_logger(__name__)
+init_sentry(service_name="govern-validate")
 
 
 class DataValidator:
@@ -44,10 +51,7 @@ class DataValidator:
     
     def run_all_checks(self) -> Dict:
         """Run all validation checks and return results"""
-        print("=" * 70)
-        print("🔍 DATA VALIDATION CHECKS")
-        print("=" * 70)
-        print()
+        logger.info("Starting data validation checks")
         
         self.check_schema_integrity()
         self.check_data_completeness()
@@ -66,7 +70,7 @@ class DataValidator:
     
     def check_schema_integrity(self):
         """Verify database schema is correct"""
-        print("📋 Checking Schema Integrity...")
+        logger.info("Checking schema integrity...")
         cur = self.conn.cursor()
         
         # Check required tables exist
@@ -83,8 +87,12 @@ class DataValidator:
         
         if missing_tables:
             self.issues.append(f"Missing tables: {', '.join(missing_tables)}")
+            logger.error(
+                "Missing required tables",
+                extra={"missing_tables": list(missing_tables)},
+            )
         else:
-            print("   ✅ All required tables exist")
+            logger.info("All required tables exist")
         
         # Check timestamp columns are TIMESTAMPTZ
         cur.execute("""
@@ -99,11 +107,14 @@ class DataValidator:
         if wrong_types:
             for table, col, dtype in wrong_types:
                 self.warnings.append(f"{table}.{col} is {dtype}, should be TIMESTAMPTZ")
+            logger.warning(
+                "Found timestamp columns with non-TIMESTAMPTZ types",
+                extra={"columns": wrong_types},
+            )
         else:
-            print("   ✅ Timestamp columns using TIMESTAMPTZ")
+            logger.info("Timestamp columns using TIMESTAMPTZ")
         
         cur.close()
-        print()
     
     def check_data_completeness(self):
         """Check for data gaps and missing readings"""
@@ -450,7 +461,7 @@ def main():
     db_url = os.getenv('DATABASE_URL')
     
     if not db_url:
-        print("❌ DATABASE_URL not found in environment variables")
+        logger.error("DATABASE_URL not found in environment variables")
         sys.exit(1)
     
     validator = DataValidator(db_url)
@@ -460,16 +471,21 @@ def main():
         validator.run_all_checks()
         passed = validator.print_summary()
         validator.close()
-        
+
         # Exit with appropriate code
         sys.exit(0 if passed else 1)
-    
+
     except Exception as e:
-        print(f"❌ Validation failed with error: {e}")
-        import traceback
-        traceback.print_exc()
+        logger.exception("Validation failed with error")
+        capture_exception(e)
         sys.exit(1)
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except Exception as exc:
+        # This is a final safety net; most errors should be handled in main()
+        logger.exception("Unhandled exception in validate_data")
+        capture_exception(exc)
+        sys.exit(1)
