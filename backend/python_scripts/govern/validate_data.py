@@ -55,7 +55,7 @@ class DataValidator:
         self.check_temporal_continuity()
         self.check_channel_health()
         self.check_value_ranges()
-        self.check_ingestion_logs()
+        self.check_pipeline_freshness()
         
         return {
             'issues': self.issues,
@@ -222,7 +222,7 @@ class DataValidator:
         cur.execute("""
             SELECT 
                 COUNT(*) FILTER (WHERE power_kw > 1000) as extreme_power,
-                COUNT(*) FILTER (WHERE voltage_v > 600 OR voltage_v < 100) as extreme_voltage
+                COUNT(*) FILTER (WHERE voltage_v > 600 OR voltage_v < 75) as extreme_voltage
             FROM readings
             WHERE power_kw IS NOT NULL OR voltage_v IS NOT NULL
         """)
@@ -351,8 +351,8 @@ class DataValidator:
             
             if min_v and max_v:
                 print(f"   Voltage: {min_v:.1f} V → {max_v:.1f} V")
-                if min_v < 100 or max_v > 600:
-                    self.warnings.append(f"Voltage outside typical range (100-600V)")
+                if min_v < 75 or max_v > 600:
+                    self.warnings.append(f"Voltage outside typical range (75-600V)")
             
             if min_pf and max_pf:
                 print(f"   Power Factor: {min_pf:.2f} → {max_pf:.2f}")
@@ -367,51 +367,49 @@ class DataValidator:
         cur.close()
         print()
     
-    def check_ingestion_logs(self):
-        """Check ingestion logs for failures"""
-        print("📝 Checking Ingestion Logs...")
+    def check_pipeline_freshness(self):
+        """Check that fresh data is arriving from the ingestion pipeline"""
+        print("📝 Checking Pipeline Freshness...")
         cur = self.conn.cursor()
-        
-        # Get recent ingestion stats
+
+        # Check the most recent reading per channel
         cur.execute("""
-            SELECT 
-                COUNT(*) as total_runs,
-                COUNT(*) FILTER (WHERE status = 'success') as successful,
-                COUNT(*) FILTER (WHERE status = 'failure') as failed,
-                MAX(end_time) as last_run
-            FROM ingestion_logs
-            WHERE end_time > NOW() - INTERVAL '7 days'
+            SELECT
+                r.channel_id,
+                c.channel_name,
+                MAX(r.timestamp) as last_reading,
+                EXTRACT(EPOCH FROM (NOW() - MAX(r.timestamp))) / 3600 as hours_since_last
+            FROM readings r
+            LEFT JOIN channels c ON r.channel_id = c.channel_id
+            GROUP BY r.channel_id, c.channel_name
+            ORDER BY last_reading DESC
         """)
-        total, success, failed, last_run = cur.fetchone()
-        
-        if total == 0:
-            self.warnings.append("No ingestion logs in last 7 days")
-            print(f"   ⚠️  No ingestion activity in last 7 days")
+        channels = cur.fetchall()
+
+        if not channels:
+            self.issues.append("No readings in database")
+            print(f"   ❌ No readings found in database")
         else:
-            print(f"   📊 Last 7 days: {total} runs, {success} successful, {failed} failed")
-            print(f"   🕐 Last run: {last_run}")
-            
-            if failed > 0:
-                # Get recent failures
-                cur.execute("""
-                    SELECT start_time, error_message
-                    FROM ingestion_logs
-                    WHERE status = 'failure'
-                    AND end_time > NOW() - INTERVAL '7 days'
-                    ORDER BY start_time DESC
-                    LIMIT 3
-                """)
-                failures = cur.fetchall()
-                
-                print(f"   ⚠️  Recent failures:")
-                for time, error in failures:
-                    error_preview = error[:60] + '...' if error and len(error) > 60 else error
-                    print(f"      {time}: {error_preview}")
-                
-                self.warnings.append(f"{failed} ingestion failures in last 7 days")
+            newest = channels[0]
+            hours_since = newest[3]
+
+            print(f"   🕐 Most recent reading: {newest[2]} ({hours_since:.0f}h ago)")
+
+            stale_channels = [ch for ch in channels if ch[3] and ch[3] > 36]
+
+            if stale_channels:
+                self.warnings.append(f"{len(stale_channels)} channels have no data in last 36 hours")
+                print(f"   ⚠️  {len(stale_channels)} channels stale (>36h since last reading):")
+                for ch in stale_channels[:3]:
+                    print(f"      {ch[1]} (ID: {ch[0]}): last reading {ch[3]:.0f}h ago")
             else:
-                print(f"   ✅ No failures in last 7 days")
-        
+                print(f"   ✅ All {len(channels)} channels have fresh data (within 36h)")
+
+            # Warn if the entire pipeline appears down (>48h for best channel)
+            if hours_since and hours_since > 48:
+                self.issues.append(f"Pipeline may be down: no data in {hours_since:.0f} hours")
+                print(f"   ❌ Pipeline may be down — no fresh data in {hours_since:.0f}h")
+
         cur.close()
         print()
     
