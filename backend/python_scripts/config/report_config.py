@@ -78,6 +78,46 @@ DEFAULT_CONFIG = {
         'defaultRate': 0.12,  # $0.12/kWh default
         'demandCharge': None,  # $/kW if applicable
     },
+
+    # ── Time-of-Use (TOU) Rate Schedule ───────────────────────────
+    # Override per-site via merge_config(); defaults to a common
+    # US commercial 3-period schedule.
+    'touSchedule': {
+        'name': 'Standard TOU',
+        'periods': {
+            'off_peak': {
+                'rate': 0.06,
+                'weekday_hours': list(range(0, 7)) + list(range(21, 24)),
+                'weekend_hours': list(range(0, 24)),
+            },
+            'mid_peak': {
+                'rate': 0.10,
+                'weekday_hours': list(range(7, 12)) + list(range(18, 21)),
+                'weekend_hours': [],
+            },
+            'on_peak': {
+                'rate': 0.20,
+                'weekday_hours': list(range(12, 18)),
+                'weekend_hours': [],
+            },
+        },
+    },
+
+    # ── Demand Charge Configuration ───────────────────────────────
+    'demandCharge': {
+        'ratePerKw': 12.00,            # $/kW per billing period
+        'billingPeriodDays': 30,
+        'ratchetPct': 0.80,             # 80% ratchet rule
+        'ratchetMonths': 11,
+    },
+
+    # ── Forecasting Defaults ──────────────────────────────────────
+    'forecast': {
+        'lookbackDays': 90,             # training window
+        'defaultHorizonDays': 7,        # default forecast horizon
+        'intervalWidth': 0.80,          # 80% confidence band
+        'minTrainingRows': 48,          # minimum hourly data points
+    },
     
     # Report output options
     'output': {

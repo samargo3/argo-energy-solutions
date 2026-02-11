@@ -1,0 +1,14 @@
+node_modules
+venv
+__pycache__
+*.pyc
+.env
+.git
+.github
+dist
+logs
+reports
+backend/data
+*.egg-info
+.pytest_cache
+.cursor

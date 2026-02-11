@@ -1,5 +1,7 @@
 """
-Analytics modules for energy data analysis (sensor health, after-hours waste, anomalies, spikes, quick wins)
+Analytics modules for energy data analysis
+(sensor health, after-hours waste, anomalies, spikes, quick wins,
+ forecasting, cost optimization)
 """
 
 from .anomaly_detection import (
@@ -31,6 +33,16 @@ from .quick_wins import (
     generate_quick_wins,
 )
 
+from .forecast import (
+    generate_forecast,
+)
+
+from .cost_model import (
+    analyze_tou_costs,
+    analyze_demand_charges,
+    generate_cost_optimization_report,
+)
+
 __all__ = [
     # anomaly_detection
     'detect_anomalies',
@@ -51,4 +63,10 @@ __all__ = [
     'generate_health_summary',
     # quick_wins
     'generate_quick_wins',
+    # forecast
+    'generate_forecast',
+    # cost_model
+    'analyze_tou_costs',
+    'analyze_demand_charges',
+    'generate_cost_optimization_report',
 ]

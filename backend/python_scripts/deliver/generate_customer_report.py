@@ -55,27 +55,33 @@ init_sentry(service_name="deliver-customer-report")
 
 
 def fetch_report_data(conn, site_id, start_date, end_date):
-    """Fetch report period data from database"""
+    """Fetch report period data from database.
+
+    All queries go through Layer 3 Business Views (v_sites, v_meters,
+    v_readings_enriched) to respect Argo data governance.
+    """
     with conn.cursor() as cur:
-        # Get organization name
+        # Get organization name via v_sites
         cur.execute("""
-            SELECT organization_name 
-            FROM organizations 
-            WHERE organization_id = %s
+            SELECT site_name AS organization_name
+            FROM v_sites
+            WHERE site_id = %s
         """, (str(site_id),))
         result = cur.fetchone()
         org_name = result['organization_name'] if result else f"Site {site_id}"
         
-        # Get channels
+        # Get channels via v_meters
         cur.execute("""
-            SELECT channel_id, channel_name, channel_type
-            FROM channels
-            WHERE organization_id = %s
-            ORDER BY channel_name
+            SELECT meter_id   AS channel_id,
+                   meter_name AS channel_name,
+                   channel_type
+            FROM v_meters
+            WHERE site_id = %s
+            ORDER BY meter_name
         """, (str(site_id),))
         channels = cur.fetchall()
         
-        # Fetch readings for each channel
+        # Fetch readings for each channel via v_readings_enriched
         report_data = []
         for channel in channels:
             cur.execute("""
@@ -88,8 +94,8 @@ def fetch_report_data(conn, site_id, start_date, end_date):
                     power_factor,
                     temperature_c,
                     relative_humidity
-                FROM readings
-                WHERE channel_id = %s
+                FROM v_readings_enriched
+                WHERE meter_id = %s
                     AND timestamp >= %s
                     AND timestamp <= %s
                 ORDER BY timestamp

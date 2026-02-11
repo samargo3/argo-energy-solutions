@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
+import apiClient from '../services/api/apiClient';
 import type { Reading } from '../services/api/eniscopeApi';
 
 export interface ChannelReading {
@@ -46,10 +46,8 @@ export const useEniscopeChannelReadings = (params: ChannelAnalysisParams) => {
       const endTs = Math.floor(params.endDate.getTime() / 1000);
       const daterange = [startTs.toString(), endTs.toString()];
 
-      // Call the proxy API server instead of Eniscope directly
-      const API_SERVER_URL = import.meta.env.VITE_API_SERVER_URL || 'http://localhost:3001';
-      
-      const response = await axios.get(`${API_SERVER_URL}/api/eniscope/readings/${params.channelId}`, {
+      // Call the FastAPI proxy
+      const response = await apiClient.get(`/api/eniscope/readings/${params.channelId}`, {
         params: {
           fields: ['E', 'P', 'V', 'I', 'PF'],
           daterange: daterange,

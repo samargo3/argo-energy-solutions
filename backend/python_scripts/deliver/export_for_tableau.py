@@ -2,6 +2,10 @@
 """
 Export Neon data to Excel/CSV for Tableau
 
+All queries go through Layer 3 Business Views (v_readings_enriched,
+v_meters) to respect Argo data governance — Deliver modules never
+query raw tables directly.
+
 Works without PostgreSQL driver - Tableau can read Excel/CSV natively.
 """
 
@@ -19,7 +23,10 @@ load_dotenv(_PROJECT_ROOT / '.env')
 
 
 def export_to_csv(output_dir='exports/tableau'):
-    """Export energy data to Tableau-friendly CSV files"""
+    """Export energy data to Tableau-friendly CSV files.
+
+    All queries use v_readings_enriched (Layer 3 Business View).
+    """
     
     print("🔄 Exporting data for Tableau...")
     print("=" * 70)
@@ -34,39 +41,36 @@ def export_to_csv(output_dir='exports/tableau'):
     print("\n📊 Exporting readings (last 90 days)...")
     cur.execute("""
         SELECT 
-            r.timestamp,
-            r.channel_id,
-            c.channel_name,
-            c.device_id,
-            d.device_name,
-            d.device_type,
-            d.serial_number as device_uuid,
-            c.organization_id,
-            o.organization_name,
-            r.energy_kwh,
-            r.power_kw,
-            r.voltage_v,
-            r.current_a,
-            r.power_factor,
-            DATE_PART('year', r.timestamp) as year,
-            DATE_PART('month', r.timestamp) as month,
-            DATE_PART('day', r.timestamp) as day,
-            DATE_PART('hour', r.timestamp) as hour,
-            DATE_PART('dow', r.timestamp) as day_of_week,
+            timestamp,
+            meter_id   AS channel_id,
+            meter_name AS channel_name,
+            device_id,
+            device_name,
+            device_type,
+            device_uuid,
+            site_id    AS organization_id,
+            site_name  AS organization_name,
+            energy_kwh,
+            power_kw,
+            voltage_v,
+            current_a,
+            power_factor,
+            DATE_PART('year', timestamp) as year,
+            DATE_PART('month', timestamp) as month,
+            DATE_PART('day', timestamp) as day,
+            DATE_PART('hour', timestamp) as hour,
+            DATE_PART('dow', timestamp) as day_of_week,
             CASE 
-                WHEN DATE_PART('dow', r.timestamp) IN (0, 6) THEN 'Weekend'
+                WHEN DATE_PART('dow', timestamp) IN (0, 6) THEN 'Weekend'
                 ELSE 'Weekday'
             END as day_type,
             CASE 
-                WHEN DATE_PART('hour', r.timestamp) BETWEEN 8 AND 17 THEN 'Business Hours'
+                WHEN DATE_PART('hour', timestamp) BETWEEN 8 AND 17 THEN 'Business Hours'
                 ELSE 'After Hours'
             END as time_category
-        FROM readings r
-        JOIN channels c ON r.channel_id = c.channel_id
-        LEFT JOIN devices d ON c.device_id = d.device_id
-        JOIN organizations o ON c.organization_id = o.organization_id
-        WHERE r.timestamp >= CURRENT_DATE - INTERVAL '90 days'
-        ORDER BY r.timestamp DESC
+        FROM v_readings_enriched
+        WHERE timestamp >= CURRENT_DATE - INTERVAL '90 days'
+        ORDER BY timestamp DESC
     """)
     
     readings_file = os.path.join(output_dir, 'tableau_readings.csv')
@@ -91,30 +95,27 @@ def export_to_csv(output_dir='exports/tableau'):
     print("\n📊 Exporting channel summary...")
     cur.execute("""
         SELECT 
-            c.channel_id,
-            c.channel_name,
-            c.device_id,
-            d.device_name,
-            d.device_type,
-            d.serial_number as device_uuid,
-            c.organization_id,
-            o.organization_name,
-            COUNT(r.timestamp) as reading_count,
-            MIN(r.timestamp) as first_reading,
-            MAX(r.timestamp) as last_reading,
-            AVG(r.power_kw) as avg_power_kw,
-            MAX(r.power_kw) as peak_power_kw,
-            SUM(r.energy_kwh) as total_energy_kwh,
-            AVG(r.voltage_v) as avg_voltage,
-            AVG(r.power_factor) as avg_power_factor,
-            SUM(r.energy_kwh) * 0.12 as estimated_cost_usd
-        FROM channels c
-        LEFT JOIN devices d ON c.device_id = d.device_id
-        LEFT JOIN readings r ON c.channel_id = r.channel_id
-        JOIN organizations o ON c.organization_id = o.organization_id
-        WHERE r.timestamp >= CURRENT_DATE - INTERVAL '90 days'
-        GROUP BY c.channel_id, c.channel_name, c.device_id, d.device_name, 
-                 d.device_type, d.serial_number, c.organization_id, o.organization_name
+            meter_id   AS channel_id,
+            meter_name AS channel_name,
+            device_id,
+            device_name,
+            device_type,
+            device_uuid,
+            site_id    AS organization_id,
+            site_name  AS organization_name,
+            COUNT(*)   AS reading_count,
+            MIN(timestamp) as first_reading,
+            MAX(timestamp) as last_reading,
+            AVG(power_kw) as avg_power_kw,
+            MAX(power_kw) as peak_power_kw,
+            SUM(energy_kwh) as total_energy_kwh,
+            AVG(voltage_v) as avg_voltage,
+            AVG(power_factor) as avg_power_factor,
+            SUM(energy_kwh) * 0.12 as estimated_cost_usd
+        FROM v_readings_enriched
+        WHERE timestamp >= CURRENT_DATE - INTERVAL '90 days'
+        GROUP BY meter_id, meter_name, device_id, device_name,
+                 device_type, device_uuid, site_id, site_name
         ORDER BY total_energy_kwh DESC NULLS LAST
     """)
     
@@ -140,22 +141,20 @@ def export_to_csv(output_dir='exports/tableau'):
     print("\n📊 Exporting daily aggregates...")
     cur.execute("""
         SELECT 
-            DATE(r.timestamp) as date,
-            c.channel_name,
-            c.organization_id,
-            o.organization_name,
+            DATE(timestamp) as date,
+            meter_name AS channel_name,
+            site_id    AS organization_id,
+            site_name  AS organization_name,
             COUNT(*) as reading_count,
-            AVG(r.power_kw) as avg_power_kw,
-            MAX(r.power_kw) as peak_power_kw,
-            SUM(r.energy_kwh) as daily_energy_kwh,
-            AVG(r.voltage_v) as avg_voltage,
-            AVG(r.power_factor) as avg_power_factor,
-            SUM(r.energy_kwh) * 0.12 as daily_cost_usd
-        FROM readings r
-        JOIN channels c ON r.channel_id = c.channel_id
-        JOIN organizations o ON c.organization_id = o.organization_id
-        WHERE r.timestamp >= CURRENT_DATE - INTERVAL '90 days'
-        GROUP BY DATE(r.timestamp), c.channel_name, c.organization_id, o.organization_name
+            AVG(power_kw) as avg_power_kw,
+            MAX(power_kw) as peak_power_kw,
+            SUM(energy_kwh) as daily_energy_kwh,
+            AVG(voltage_v) as avg_voltage,
+            AVG(power_factor) as avg_power_factor,
+            SUM(energy_kwh) * 0.12 as daily_cost_usd
+        FROM v_readings_enriched
+        WHERE timestamp >= CURRENT_DATE - INTERVAL '90 days'
+        GROUP BY DATE(timestamp), meter_name, site_id, site_name
         ORDER BY date DESC, daily_energy_kwh DESC
     """)
     
@@ -180,15 +179,14 @@ def export_to_csv(output_dir='exports/tableau'):
     print("\n📊 Exporting hourly patterns...")
     cur.execute("""
         SELECT 
-            DATE_PART('hour', r.timestamp) as hour_of_day,
-            DATE_PART('dow', r.timestamp) as day_of_week,
-            c.channel_name,
-            AVG(r.power_kw) as avg_power_kw,
+            DATE_PART('hour', timestamp) as hour_of_day,
+            DATE_PART('dow', timestamp) as day_of_week,
+            meter_name AS channel_name,
+            AVG(power_kw) as avg_power_kw,
             COUNT(*) as reading_count
-        FROM readings r
-        JOIN channels c ON r.channel_id = c.channel_id
-        WHERE r.timestamp >= CURRENT_DATE - INTERVAL '90 days'
-        GROUP BY hour_of_day, day_of_week, c.channel_name
+        FROM v_readings_enriched
+        WHERE timestamp >= CURRENT_DATE - INTERVAL '90 days'
+        GROUP BY hour_of_day, day_of_week, meter_name
         ORDER BY hour_of_day, day_of_week
     """)
     
@@ -230,7 +228,7 @@ def export_to_csv(output_dir='exports/tableau'):
 
 
 def export_custom_date_range(start_date, end_date, output_dir='exports/tableau'):
-    """Export specific date range"""
+    """Export specific date range via v_readings_enriched (Layer 3)."""
     
     print(f"🔄 Exporting data from {start_date} to {end_date}...")
     
@@ -241,25 +239,22 @@ def export_custom_date_range(start_date, end_date, output_dir='exports/tableau')
     
     cur.execute("""
         SELECT 
-            r.timestamp,
-            r.channel_id,
-            c.channel_name,
-            c.device_id,
-            d.device_name,
-            d.device_type,
-            d.serial_number as device_uuid,
-            c.organization_id,
-            o.organization_name,
-            r.energy_kwh,
-            r.power_kw,
-            r.voltage_v,
-            r.power_factor
-        FROM readings r
-        JOIN channels c ON r.channel_id = c.channel_id
-        LEFT JOIN devices d ON c.device_id = d.device_id
-        JOIN organizations o ON c.organization_id = o.organization_id
-        WHERE r.timestamp >= %s AND r.timestamp <= %s
-        ORDER BY r.timestamp
+            timestamp,
+            meter_id   AS channel_id,
+            meter_name AS channel_name,
+            device_id,
+            device_name,
+            device_type,
+            device_uuid,
+            site_id    AS organization_id,
+            site_name  AS organization_name,
+            energy_kwh,
+            power_kw,
+            voltage_v,
+            power_factor
+        FROM v_readings_enriched
+        WHERE timestamp >= %s AND timestamp <= %s
+        ORDER BY timestamp
     """, (start_date, end_date))
     
     filename = f'tableau_custom_{start_date}_{end_date}.csv'

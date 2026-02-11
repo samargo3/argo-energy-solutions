@@ -4,6 +4,10 @@ Natural Language Energy Data Query Tool
 
 Quick and easy way to query your Neon database with simple questions.
 
+All queries go through Layer 3 Business Views (v_readings_enriched,
+v_meters) to respect Argo data governance — Analyze modules never
+query raw tables directly.
+
 Usage:
     python query_energy_data.py "show me total energy this week"
     python query_energy_data.py "what's the average power for RTU-1"
@@ -27,7 +31,12 @@ load_dotenv(_PROJECT_ROOT / '.env')
 
 
 class EnergyDataQuery:
-    """Simple natural language query interface for energy data"""
+    """Simple natural language query interface for energy data
+
+    All queries use Layer 3 Business Views:
+    - v_meters          — enriched channel/meter metadata with site context
+    - v_readings_enriched — clean readings with full meter/site context
+    """
     
     def __init__(self):
         self.db_url = os.getenv('DATABASE_URL')
@@ -66,52 +75,50 @@ class EnergyDataQuery:
         return "\n".join(lines)
     
     def list_channels(self):
-        """List all channels"""
+        """List all channels via v_meters."""
         with self._get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute("""
                     SELECT 
-                        channel_id,
-                        channel_name,
+                        meter_id   AS channel_id,
+                        meter_name AS channel_name,
                         channel_type,
-                        organization_id
-                    FROM channels
-                    ORDER BY channel_name
+                        site_id    AS organization_id
+                    FROM v_meters
+                    ORDER BY meter_name
                 """)
                 return self._format_table(cur.fetchall())
     
     def get_channel_stats(self, channel_name=None, days=7):
-        """Get statistics for a channel"""
+        """Get statistics for a channel via v_readings_enriched."""
         with self._get_connection() as conn:
             with conn.cursor() as cur:
                 if channel_name:
                     cur.execute("""
                         SELECT 
-                            c.channel_name,
-                            COUNT(r.id) as reading_count,
-                            ROUND(AVG(r.power_kw)::numeric, 2) as avg_power_kw,
-                            ROUND(MAX(r.power_kw)::numeric, 2) as max_power_kw,
-                            ROUND(MIN(r.power_kw)::numeric, 2) as min_power_kw,
-                            ROUND(SUM(r.energy_kwh)::numeric, 2) as total_energy_kwh,
-                            MIN(r.timestamp) as first_reading,
-                            MAX(r.timestamp) as last_reading
-                        FROM channels c
-                        LEFT JOIN readings r ON c.channel_id = r.channel_id
-                        WHERE c.channel_name ILIKE %s
-                            AND r.timestamp >= NOW() - INTERVAL '%s days'
-                        GROUP BY c.channel_id, c.channel_name
+                            meter_name AS channel_name,
+                            COUNT(*) as reading_count,
+                            ROUND(AVG(power_kw)::numeric, 2) as avg_power_kw,
+                            ROUND(MAX(power_kw)::numeric, 2) as max_power_kw,
+                            ROUND(MIN(power_kw)::numeric, 2) as min_power_kw,
+                            ROUND(SUM(energy_kwh)::numeric, 2) as total_energy_kwh,
+                            MIN(timestamp) as first_reading,
+                            MAX(timestamp) as last_reading
+                        FROM v_readings_enriched
+                        WHERE meter_name ILIKE %s
+                            AND timestamp >= NOW() - INTERVAL '%s days'
+                        GROUP BY meter_id, meter_name
                     """, (f'%{channel_name}%', days))
                 else:
                     cur.execute("""
                         SELECT 
-                            c.channel_name,
-                            COUNT(r.id) as reading_count,
-                            ROUND(AVG(r.power_kw)::numeric, 2) as avg_power_kw,
-                            ROUND(SUM(r.energy_kwh)::numeric, 2) as total_energy_kwh
-                        FROM channels c
-                        LEFT JOIN readings r ON c.channel_id = r.channel_id
-                        WHERE r.timestamp >= NOW() - INTERVAL '%s days'
-                        GROUP BY c.channel_id, c.channel_name
+                            meter_name AS channel_name,
+                            COUNT(*) as reading_count,
+                            ROUND(AVG(power_kw)::numeric, 2) as avg_power_kw,
+                            ROUND(SUM(energy_kwh)::numeric, 2) as total_energy_kwh
+                        FROM v_readings_enriched
+                        WHERE timestamp >= NOW() - INTERVAL '%s days'
+                        GROUP BY meter_id, meter_name
                         ORDER BY total_energy_kwh DESC NULLS LAST
                         LIMIT 10
                     """, (days,))
@@ -119,18 +126,18 @@ class EnergyDataQuery:
                 return self._format_table(cur.fetchall())
     
     def get_total_energy(self, days=7):
-        """Get total energy consumption"""
+        """Get total energy consumption via v_readings_enriched."""
         with self._get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute("""
                     SELECT 
-                        COUNT(DISTINCT channel_id) as channels,
+                        COUNT(DISTINCT meter_id) as channels,
                         COUNT(*) as readings,
                         ROUND(SUM(energy_kwh)::numeric, 2) as total_kwh,
                         ROUND(AVG(power_kw)::numeric, 2) as avg_power_kw,
                         MIN(timestamp) as period_start,
                         MAX(timestamp) as period_end
-                    FROM readings
+                    FROM v_readings_enriched
                     WHERE timestamp >= NOW() - INTERVAL '%s days'
                 """, (days,))
                 
@@ -148,19 +155,18 @@ Period:          {result['period_start']} to {result['period_end']}
                 return "No data found"
     
     def get_top_consumers(self, days=7, limit=10):
-        """Get top energy consumers"""
+        """Get top energy consumers via v_readings_enriched."""
         with self._get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute("""
                     SELECT 
-                        c.channel_name,
-                        ROUND(SUM(r.energy_kwh)::numeric, 2) as total_kwh,
-                        ROUND(AVG(r.power_kw)::numeric, 2) as avg_kw,
-                        ROUND(MAX(r.power_kw)::numeric, 2) as peak_kw
-                    FROM channels c
-                    JOIN readings r ON c.channel_id = r.channel_id
-                    WHERE r.timestamp >= NOW() - INTERVAL '%s days'
-                    GROUP BY c.channel_id, c.channel_name
+                        meter_name AS channel_name,
+                        ROUND(SUM(energy_kwh)::numeric, 2) as total_kwh,
+                        ROUND(AVG(power_kw)::numeric, 2) as avg_kw,
+                        ROUND(MAX(power_kw)::numeric, 2) as peak_kw
+                    FROM v_readings_enriched
+                    WHERE timestamp >= NOW() - INTERVAL '%s days'
+                    GROUP BY meter_id, meter_name
                     ORDER BY total_kwh DESC
                     LIMIT %s
                 """, (days, limit))
@@ -168,20 +174,19 @@ Period:          {result['period_start']} to {result['period_end']}
                 return self._format_table(cur.fetchall())
     
     def get_hourly_pattern(self, channel_name=None, days=7):
-        """Get hourly consumption pattern"""
+        """Get hourly consumption pattern via v_readings_enriched."""
         with self._get_connection() as conn:
             with conn.cursor() as cur:
                 if channel_name:
                     cur.execute("""
                         SELECT 
-                            EXTRACT(HOUR FROM r.timestamp) as hour,
-                            ROUND(AVG(r.power_kw)::numeric, 2) as avg_power_kw,
+                            EXTRACT(HOUR FROM timestamp) as hour,
+                            ROUND(AVG(power_kw)::numeric, 2) as avg_power_kw,
                             COUNT(*) as readings
-                        FROM readings r
-                        JOIN channels c ON r.channel_id = c.channel_id
-                        WHERE c.channel_name ILIKE %s
-                            AND r.timestamp >= NOW() - INTERVAL '%s days'
-                        GROUP BY EXTRACT(HOUR FROM r.timestamp)
+                        FROM v_readings_enriched
+                        WHERE meter_name ILIKE %s
+                            AND timestamp >= NOW() - INTERVAL '%s days'
+                        GROUP BY EXTRACT(HOUR FROM timestamp)
                         ORDER BY hour
                     """, (f'%{channel_name}%', days))
                 else:
@@ -190,7 +195,7 @@ Period:          {result['period_start']} to {result['period_end']}
                             EXTRACT(HOUR FROM timestamp) as hour,
                             ROUND(AVG(power_kw)::numeric, 2) as avg_power_kw,
                             COUNT(*) as readings
-                        FROM readings
+                        FROM v_readings_enriched
                         WHERE timestamp >= NOW() - INTERVAL '%s days'
                         GROUP BY EXTRACT(HOUR FROM timestamp)
                         ORDER BY hour
@@ -199,50 +204,48 @@ Period:          {result['period_start']} to {result['period_end']}
                 return self._format_table(cur.fetchall())
     
     def get_recent_readings(self, channel_name=None, limit=20):
-        """Get most recent readings"""
+        """Get most recent readings via v_readings_enriched."""
         with self._get_connection() as conn:
             with conn.cursor() as cur:
                 if channel_name:
                     cur.execute("""
                         SELECT 
-                            r.timestamp,
-                            c.channel_name,
-                            ROUND(r.power_kw::numeric, 2) as power_kw,
-                            ROUND(r.energy_kwh::numeric, 2) as energy_kwh
-                        FROM readings r
-                        JOIN channels c ON r.channel_id = c.channel_id
-                        WHERE c.channel_name ILIKE %s
-                        ORDER BY r.timestamp DESC
+                            timestamp,
+                            meter_name AS channel_name,
+                            ROUND(power_kw::numeric, 2) as power_kw,
+                            ROUND(energy_kwh::numeric, 2) as energy_kwh
+                        FROM v_readings_enriched
+                        WHERE meter_name ILIKE %s
+                        ORDER BY timestamp DESC
                         LIMIT %s
                     """, (f'%{channel_name}%', limit))
                 else:
                     cur.execute("""
                         SELECT 
-                            r.timestamp,
-                            c.channel_name,
-                            ROUND(r.power_kw::numeric, 2) as power_kw,
-                            ROUND(r.energy_kwh::numeric, 2) as energy_kwh
-                        FROM readings r
-                        JOIN channels c ON r.channel_id = c.channel_id
-                        ORDER BY r.timestamp DESC
+                            timestamp,
+                            meter_name AS channel_name,
+                            ROUND(power_kw::numeric, 2) as power_kw,
+                            ROUND(energy_kwh::numeric, 2) as energy_kwh
+                        FROM v_readings_enriched
+                        ORDER BY timestamp DESC
                         LIMIT %s
                     """, (limit,))
                 
                 return self._format_table(cur.fetchall())
     
     def search_channels(self, search_term):
-        """Search for channels by name"""
+        """Search for channels by name via v_meters."""
         with self._get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute("""
                     SELECT 
-                        channel_id,
-                        channel_name,
+                        meter_id   AS channel_id,
+                        meter_name AS channel_name,
                         channel_type,
-                        (SELECT COUNT(*) FROM readings WHERE channel_id = c.channel_id) as total_readings
-                    FROM channels c
-                    WHERE channel_name ILIKE %s
-                    ORDER BY channel_name
+                        site_id    AS organization_id
+                    FROM v_meters
+                    WHERE meter_name ILIKE %s
+                    ORDER BY meter_name
                 """, (f'%{search_term}%',))
                 
                 return self._format_table(cur.fetchall())
@@ -255,10 +258,13 @@ Period:          {result['period_start']} to {result['period_end']}
         channel_name = None
         for word in question.split():
             if len(word) > 3 and not word.lower() in ['show', 'what', 'list', 'get', 'find', 'total', 'average']:
-                # Check if this might be a channel name
+                # Check if this might be a channel name via v_meters
                 with self._get_connection() as conn:
                     with conn.cursor() as cur:
-                        cur.execute("SELECT channel_name FROM channels WHERE channel_name ILIKE %s LIMIT 1", (f'%{word}%',))
+                        cur.execute(
+                            "SELECT meter_name FROM v_meters WHERE meter_name ILIKE %s LIMIT 1",
+                            (f'%{word}%',),
+                        )
                         result = cur.fetchone()
                         if result:
                             channel_name = word

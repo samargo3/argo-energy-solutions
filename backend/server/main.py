@@ -1,29 +1,53 @@
 #!/usr/bin/env python3
 """
-FastAPI Energy Data Server
+Argo Energy — Unified FastAPI Server
 
-Serves historical energy data from Neon (v_readings_enriched) to the React
-frontend.  Aggregates by hour to keep payloads under 5 000 rows.
+Replaces both the Express api-server.js and the original single-endpoint
+FastAPI server.  All data now flows through PostgreSQL (Neon).
+
+Endpoints:
+    /health                                     — health check (public)
+    /api/auth/login                             — password gate
+    /api/energy/history                         — hourly-aggregated site energy
+    /api/channels                               — list channels
+    /api/channels/{id}/readings                 — raw readings
+    /api/channels/{id}/readings/aggregated      — aggregated readings
+    /api/channels/{id}/statistics               — statistics
+    /api/channels/{id}/readings/latest          — latest reading
+    /api/channels/{id}/range                    — data availability range
+    /api/organizations/{id}/summary             — org-level summary
+    /api/analytics/forecast/{site_id}           — Prophet usage forecast
+    /api/analytics/cost-optimization/{site_id}  — TOU + demand analysis
+    /api/eniscope/readings/{channelId}          — Eniscope API proxy
+    /api/eniscope/channels                      — Eniscope API proxy
+    /api/eniscope/devices                       — Eniscope API proxy
 
 Usage:
     uvicorn backend.server.main:app --reload --port 8000
     npm run py:api
-
-Requires: fastapi, uvicorn[standard], psycopg2-binary, python-dotenv
 """
 
+import asyncio
+import hashlib
+import hmac
+import logging
 import os
+import secrets
+import time
+from base64 import b64encode
 from contextlib import contextmanager
-from datetime import date
+from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Optional
+from typing import Any, Dict, List, Optional
 
+import httpx
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Query, Security, Depends
+from fastapi import FastAPI, HTTPException, Query, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import APIKeyHeader
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 
 # ---------------------------------------------------------------------------
 # Environment
@@ -36,39 +60,200 @@ if not DATABASE_URL:
     raise RuntimeError("DATABASE_URL is not set – check your .env file")
 
 API_SECRET_KEY = os.getenv("API_SECRET_KEY", "")
+APP_PASSWORD = os.getenv("APP_PASSWORD", "")
 
-MAX_ROWS = 5_000  # hard cap to protect the browser
+# Eniscope API credentials
+ENISCOPE_API_URL = (
+    os.getenv("ENISCOPE_API_URL")
+    or os.getenv("VITE_ENISCOPE_API_URL")
+    or "https://core.eniscope.com"
+).rstrip("/")
+ENISCOPE_API_KEY = os.getenv("ENISCOPE_API_KEY") or os.getenv("VITE_ENISCOPE_API_KEY") or ""
+ENISCOPE_EMAIL = os.getenv("ENISCOPE_EMAIL") or os.getenv("VITE_ENISCOPE_EMAIL") or ""
+ENISCOPE_PASSWORD = os.getenv("ENISCOPE_PASSWORD") or os.getenv("VITE_ENISCOPE_PASSWORD") or ""
+
+# CORS — add your Render production domain here
+ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:4173",  # Vite preview
+]
+_extra_origin = os.getenv("CORS_ORIGIN")
+if _extra_origin:
+    ALLOWED_ORIGINS.append(_extra_origin)
+
+MAX_ROWS = 5_000
+logger = logging.getLogger("argo.api")
 
 # ---------------------------------------------------------------------------
-# API Key Security
+# Auth helpers
 # ---------------------------------------------------------------------------
-_api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+# Simple token store (in-memory; fine for single-process deployment)
+_valid_tokens: Dict[str, float] = {}   # token → expiry timestamp
+TOKEN_TTL = 60 * 60 * 24  # 24 hours
 
 
-async def require_api_key(api_key: Optional[str] = Security(_api_key_header)):
-    """Validate X-API-Key header. Warn-only when key is not configured."""
-    if not API_SECRET_KEY:
-        # Development mode — no key configured, allow all requests
-        return api_key
-    if not api_key or api_key != API_SECRET_KEY:
-        raise HTTPException(status_code=401, detail="Unauthorized — valid X-API-Key header required")
-    return api_key
+class LoginRequest(BaseModel):
+    password: str
+
+
+def _create_token() -> str:
+    token = secrets.token_urlsafe(32)
+    _valid_tokens[token] = time.time() + TOKEN_TTL
+    return token
+
+
+def _verify_token(token: str) -> bool:
+    expiry = _valid_tokens.get(token)
+    if expiry is None:
+        return False
+    if time.time() > expiry:
+        _valid_tokens.pop(token, None)
+        return False
+    return True
+
+
+# Paths that don't require auth
+_PUBLIC_PATHS = {"/", "/health", "/api/auth/login", "/docs", "/openapi.json", "/redoc"}
+
+
+async def require_auth(request: Request):
+    """Check Bearer token or X-API-Key on all /api/* routes."""
+    path = request.url.path
+
+    # Public endpoints
+    if path in _PUBLIC_PATHS:
+        return
+
+    # X-API-Key header (for pipeline / server-to-server)
+    api_key = request.headers.get("x-api-key")
+    if API_SECRET_KEY and api_key == API_SECRET_KEY:
+        return
+
+    # Bearer token (for frontend after login)
+    auth_header = request.headers.get("authorization", "")
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:]
+        if _verify_token(token):
+            return
+
+    # No APP_PASSWORD set → development mode, allow everything
+    if not APP_PASSWORD:
+        return
+
+    raise HTTPException(status_code=401, detail="Unauthorized")
+
+
+# ---------------------------------------------------------------------------
+# Eniscope proxy
+# ---------------------------------------------------------------------------
+class EniscopeProxy:
+    """Port of the Node.js EniscopeProxy class — session token auth + retries."""
+
+    def __init__(self) -> None:
+        self.session_token: Optional[str] = None
+        self.api_key = ENISCOPE_API_KEY
+        self.email = ENISCOPE_EMAIL
+        self.password_md5 = hashlib.md5(ENISCOPE_PASSWORD.encode()).hexdigest()
+        self.base_url = ENISCOPE_API_URL
+        self._client: Optional[httpx.AsyncClient] = None
+
+    async def _get_client(self) -> httpx.AsyncClient:
+        if self._client is None or self._client.is_closed:
+            self._client = httpx.AsyncClient(timeout=30.0)
+        return self._client
+
+    async def authenticate(self) -> Optional[str]:
+        auth_string = f"{self.email}:{self.password_md5}"
+        auth_b64 = b64encode(auth_string.encode()).decode()
+
+        client = await self._get_client()
+        resp = await client.get(
+            f"{self.base_url}/v1/1/organizations",
+            headers={
+                "Authorization": f"Basic {auth_b64}",
+                "X-Eniscope-API": self.api_key,
+                "Accept": "text/json",
+            },
+        )
+        resp.raise_for_status()
+        self.session_token = (
+            resp.headers.get("x-eniscope-token")
+            or resp.headers.get("X-Eniscope-Token")
+        )
+        return self.session_token
+
+    async def make_request(
+        self, endpoint: str, params: Optional[Dict[str, Any]] = None, retries: int = 3
+    ) -> Any:
+        headers: Dict[str, str] = {
+            "X-Eniscope-API": self.api_key,
+            "Accept": "text/json",
+        }
+
+        if not self.session_token:
+            await self.authenticate()
+
+        if self.session_token:
+            headers["X-Eniscope-Token"] = self.session_token
+        else:
+            auth_string = f"{self.email}:{self.password_md5}"
+            auth_b64 = b64encode(auth_string.encode()).decode()
+            headers["Authorization"] = f"Basic {auth_b64}"
+
+        client = await self._get_client()
+
+        for attempt in range(retries):
+            try:
+                resp = await client.get(
+                    f"{self.base_url}{endpoint}",
+                    headers=headers,
+                    params=params or {},
+                )
+                resp.raise_for_status()
+
+                # Update session token if returned
+                token = (
+                    resp.headers.get("x-eniscope-token")
+                    or resp.headers.get("X-Eniscope-Token")
+                )
+                if token:
+                    self.session_token = token
+
+                return resp.json()
+
+            except httpx.HTTPStatusError as exc:
+                status = exc.response.status_code
+                if status in (401, 419):
+                    self.session_token = None
+                    await self.authenticate()
+                    if self.session_token:
+                        headers["X-Eniscope-Token"] = self.session_token
+                    if attempt < retries - 1:
+                        continue
+                if status == 429 and attempt < retries - 1:
+                    await asyncio.sleep(2 ** attempt)
+                    continue
+                raise
+
+        return None  # should not reach here
+
+
+eniscope_proxy = EniscopeProxy()
+
 
 # ---------------------------------------------------------------------------
 # App
 # ---------------------------------------------------------------------------
 app = FastAPI(
     title="Argo Energy API",
-    version="0.1.0",
-    description="Serves historical energy data for the React dashboard.",
+    version="0.2.0",
+    description="Unified API — data, Eniscope proxy, and auth for the React dashboard.",
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",   # Vite dev server
-        "http://127.0.0.1:5173",
-    ],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -89,36 +274,78 @@ def get_cursor():
         conn.close()
 
 
+@contextmanager
+def get_connection():
+    """Yield a raw psycopg2 connection (for analytics modules)."""
+    conn = psycopg2.connect(DATABASE_URL)
+    try:
+        yield conn
+    finally:
+        conn.close()
+
+
+def _serialize_row(row: Dict) -> Dict:
+    """Convert datetime / Decimal objects to JSON-safe types."""
+    out: Dict[str, Any] = {}
+    for k, v in row.items():
+        if isinstance(v, datetime):
+            out[k] = v.isoformat()
+        elif v is None:
+            out[k] = None
+        else:
+            try:
+                out[k] = round(float(v), 4)
+            except (TypeError, ValueError):
+                out[k] = str(v)
+    return out
+
+
 # ---------------------------------------------------------------------------
-# Routes
+# Public routes
 # ---------------------------------------------------------------------------
 @app.get("/")
 def root():
-    return {"status": "ok", "service": "Argo Energy API"}
+    return {"status": "ok", "service": "Argo Energy API", "version": "0.2.0"}
 
 
-@app.get("/api/energy/history")
+@app.get("/health")
+def health():
+    return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
+
+
+# ---------------------------------------------------------------------------
+# Auth routes
+# ---------------------------------------------------------------------------
+@app.post("/api/auth/login")
+def login(body: LoginRequest):
+    """Validate the shared APP_PASSWORD and return a bearer token."""
+    if not APP_PASSWORD:
+        # Dev mode — no password required, issue token anyway
+        return {"token": _create_token()}
+
+    if not hmac.compare_digest(body.password, APP_PASSWORD):
+        raise HTTPException(status_code=401, detail="Invalid password")
+
+    return {"token": _create_token()}
+
+
+# ---------------------------------------------------------------------------
+# Data routes (PostgreSQL — all queries go through Layer 3 Business Views)
+#
+# Argo Governance: The API server is part of Stage 4 (Deliver).  It must
+# consume data from the governed view layer, never from raw tables.
+# ---------------------------------------------------------------------------
+@app.get("/api/energy/history", dependencies=[Depends(require_auth)])
 def energy_history(
     start_date: Optional[str] = Query("2025-11-05", description="Start date (YYYY-MM-DD)"),
     end_date: Optional[str] = Query("2026-02-05", description="End date (YYYY-MM-DD)"),
-    _key: str = Depends(require_api_key),
 ):
-    """
-    Return hourly-aggregated energy data for the entire site.
+    """Hourly-aggregated energy data for the entire site.
 
-    The raw ``readings`` table holds ~300 k 15-min rows.  To prevent
-    crashing the browser we aggregate by hour and cap at 5 000 rows.
-
-    Response shape::
-
-        {
-          "meta": { "start_date", "end_date", "rows", "aggregation" },
-          "data": [ { "timestamp": "...", "energy_kwh": ..., "avg_power_kw": ... }, ... ]
-        }
+    Source: ``v_readings_enriched`` (Layer 3 Business View).
     """
     try:
         with get_cursor() as cur:
-            # Hourly aggregation across all meters for the site
             cur.execute(
                 """
                 SELECT
@@ -135,11 +362,9 @@ def energy_history(
                 (start_date, end_date, MAX_ROWS),
             )
             rows = cur.fetchall()
-
     except psycopg2.Error as exc:
         raise HTTPException(status_code=500, detail=f"Database error: {exc}") from exc
 
-    # Serialise datetime → ISO-8601 string, round floats
     data = [
         {
             "timestamp": str(r["timestamp"]),
@@ -148,7 +373,6 @@ def energy_history(
         }
         for r in rows
     ]
-
     return {
         "meta": {
             "start_date": start_date,
@@ -158,3 +382,470 @@ def energy_history(
         },
         "data": data,
     }
+
+
+@app.get("/api/channels", dependencies=[Depends(require_auth)])
+def get_channels(organizationId: Optional[int] = None):
+    """List channels, optionally filtered by organization.
+
+    Source: ``v_meters`` (Layer 3 Business View).
+    """
+    try:
+        with get_cursor() as cur:
+            if organizationId:
+                cur.execute(
+                    """
+                    SELECT meter_id   AS channel_id,
+                           meter_name AS channel_name,
+                           channel_type,
+                           device_id,
+                           device_name,
+                           site_id    AS organization_id,
+                           site_name  AS organization_name
+                    FROM v_meters
+                    WHERE site_id = %s
+                    ORDER BY meter_name
+                    """,
+                    (str(organizationId),),
+                )
+            else:
+                cur.execute(
+                    """
+                    SELECT meter_id   AS channel_id,
+                           meter_name AS channel_name,
+                           channel_type,
+                           device_id,
+                           device_name,
+                           site_id    AS organization_id,
+                           site_name  AS organization_name
+                    FROM v_meters
+                    ORDER BY meter_name
+                    """
+                )
+            return [_serialize_row(r) for r in cur.fetchall()]
+    except psycopg2.Error as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/api/channels/{channel_id}/readings", dependencies=[Depends(require_auth)])
+def get_channel_readings(
+    channel_id: int,
+    startDate: str = Query(..., description="Start date YYYY-MM-DD"),
+    endDate: str = Query(..., description="End date YYYY-MM-DD"),
+    limit: Optional[int] = None,
+):
+    """Clean readings for a channel within a date range.
+
+    Source: ``v_readings_enriched`` (Layer 3 Business View).
+    """
+    try:
+        with get_cursor() as cur:
+            sql = """
+                SELECT timestamp, energy_kwh, power_kw,
+                       voltage_v, current_a, power_factor
+                FROM v_readings_enriched
+                WHERE meter_id = %s
+                  AND timestamp >= %s::date
+                  AND timestamp <  (%s::date + INTERVAL '1 day')
+                ORDER BY timestamp
+            """
+            params: list = [channel_id, startDate, endDate]
+            if limit:
+                sql += " LIMIT %s"
+                params.append(limit)
+            cur.execute(sql, params)
+            return [_serialize_row(r) for r in cur.fetchall()]
+    except psycopg2.Error as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/api/channels/{channel_id}/readings/aggregated", dependencies=[Depends(require_auth)])
+def get_aggregated_readings(
+    channel_id: int,
+    startDate: str = Query(...),
+    endDate: str = Query(...),
+    resolution: str = Query("hour", pattern="^(hour|day|week|month)$"),
+):
+    """Aggregated readings at the requested resolution.
+
+    Source: ``v_readings_enriched`` (Layer 3 Business View).
+    """
+    trunc_map = {"hour": "hour", "day": "day", "week": "week", "month": "month"}
+    trunc = trunc_map[resolution]
+    try:
+        with get_cursor() as cur:
+            cur.execute(
+                f"""
+                SELECT
+                    date_trunc('{trunc}', timestamp) AS period,
+                    %s AS channel_id,
+                    COALESCE(SUM(energy_kwh), 0)  AS total_energy_kwh,
+                    COALESCE(AVG(power_kw), 0)    AS average_power_kw,
+                    COALESCE(MAX(power_kw), 0)    AS peak_power_kw,
+                    COALESCE(MIN(power_kw), 0)    AS min_power_kw,
+                    COALESCE(AVG(voltage_v), 0)   AS average_voltage_v,
+                    COUNT(*)                       AS count
+                FROM v_readings_enriched
+                WHERE meter_id = %s
+                  AND timestamp >= %s::date
+                  AND timestamp <  (%s::date + INTERVAL '1 day')
+                GROUP BY date_trunc('{trunc}', timestamp)
+                ORDER BY period
+                LIMIT %s
+                """,
+                (channel_id, channel_id, startDate, endDate, MAX_ROWS),
+            )
+            return [_serialize_row(r) for r in cur.fetchall()]
+    except psycopg2.Error as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/api/channels/{channel_id}/statistics", dependencies=[Depends(require_auth)])
+def get_channel_statistics(
+    channel_id: int,
+    startDate: str = Query(...),
+    endDate: str = Query(...),
+):
+    """Energy statistics for a channel in a date range.
+
+    Source: ``v_readings_enriched`` (Layer 3 Business View).
+    """
+    try:
+        with get_cursor() as cur:
+            # Single query: stats + peak/min timestamps via window functions
+            cur.execute(
+                """
+                WITH stats AS (
+                    SELECT
+                        COALESCE(SUM(energy_kwh), 0)  AS total_energy_kwh,
+                        COALESCE(AVG(power_kw), 0)    AS average_power_kw,
+                        COALESCE(MAX(power_kw), 0)    AS peak_power_kw,
+                        COALESCE(MIN(power_kw), 0)    AS min_power_kw,
+                        COALESCE(AVG(voltage_v), 0)   AS average_voltage_v,
+                        COUNT(*)                       AS count
+                    FROM v_readings_enriched
+                    WHERE meter_id = %s
+                      AND timestamp >= %s::date
+                      AND timestamp <  (%s::date + INTERVAL '1 day')
+                ),
+                peak AS (
+                    SELECT timestamp AS peak_timestamp
+                    FROM v_readings_enriched
+                    WHERE meter_id = %s
+                      AND timestamp >= %s::date
+                      AND timestamp <  (%s::date + INTERVAL '1 day')
+                    ORDER BY power_kw DESC NULLS LAST
+                    LIMIT 1
+                ),
+                trough AS (
+                    SELECT timestamp AS min_timestamp
+                    FROM v_readings_enriched
+                    WHERE meter_id = %s
+                      AND timestamp >= %s::date
+                      AND timestamp <  (%s::date + INTERVAL '1 day')
+                    ORDER BY power_kw ASC NULLS LAST
+                    LIMIT 1
+                )
+                SELECT s.*, p.peak_timestamp, t.min_timestamp
+                FROM stats s
+                LEFT JOIN peak p ON true
+                LEFT JOIN trough t ON true
+                """,
+                (
+                    channel_id, startDate, endDate,
+                    channel_id, startDate, endDate,
+                    channel_id, startDate, endDate,
+                ),
+            )
+            row = cur.fetchone()
+            if not row:
+                return {}
+
+            result = _serialize_row(row)
+            result["peak_timestamp"] = row["peak_timestamp"].isoformat() if row.get("peak_timestamp") else None
+            result["min_timestamp"] = row["min_timestamp"].isoformat() if row.get("min_timestamp") else None
+            return result
+    except psycopg2.Error as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/api/channels/{channel_id}/readings/latest", dependencies=[Depends(require_auth)])
+def get_latest_reading(channel_id: int):
+    """Most recent reading for a channel.
+
+    Source: ``v_latest_readings`` (Layer 3 Business View).
+    """
+    try:
+        with get_cursor() as cur:
+            cur.execute(
+                """
+                SELECT timestamp, energy_kwh, power_kw,
+                       voltage_v, current_a, power_factor
+                FROM v_latest_readings
+                WHERE meter_id = %s
+                """,
+                (channel_id,),
+            )
+            row = cur.fetchone()
+            return _serialize_row(row) if row else None
+    except psycopg2.Error as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/api/channels/{channel_id}/range", dependencies=[Depends(require_auth)])
+def get_channel_range(channel_id: int):
+    """Data availability range (earliest / latest timestamp).
+
+    Source: ``v_readings_enriched`` (Layer 3 Business View).
+    """
+    try:
+        with get_cursor() as cur:
+            cur.execute(
+                """
+                SELECT
+                    MIN(timestamp) AS earliest,
+                    MAX(timestamp) AS latest,
+                    COUNT(*)       AS total_readings
+                FROM v_readings_enriched
+                WHERE meter_id = %s
+                """,
+                (channel_id,),
+            )
+            row = cur.fetchone()
+            return _serialize_row(row) if row else {}
+    except psycopg2.Error as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/api/organizations/{organization_id}/summary", dependencies=[Depends(require_auth)])
+def get_organization_summary(
+    organization_id: int,
+    startDate: str = Query(...),
+    endDate: str = Query(...),
+):
+    """Organization-level energy summary.
+
+    Source: ``v_readings_enriched`` (Layer 3 Business View).
+    """
+    try:
+        with get_cursor() as cur:
+            cur.execute(
+                """
+                SELECT
+                    COUNT(DISTINCT meter_id)          AS channels,
+                    COALESCE(SUM(energy_kwh), 0)      AS total_energy_kwh,
+                    COALESCE(AVG(power_kw), 0)        AS average_power_kw,
+                    COALESCE(MAX(power_kw), 0)        AS peak_power_kw,
+                    COUNT(*)                           AS total_readings
+                FROM v_readings_enriched
+                WHERE site_id = %s
+                  AND timestamp >= %s::date
+                  AND timestamp <  (%s::date + INTERVAL '1 day')
+                """,
+                (str(organization_id), startDate, endDate),
+            )
+            row = cur.fetchone()
+            return _serialize_row(row) if row else {}
+    except psycopg2.Error as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+# ---------------------------------------------------------------------------
+# Analytics routes
+# ---------------------------------------------------------------------------
+@app.get("/api/analytics/forecast/{site_id}", dependencies=[Depends(require_auth)])
+def analytics_forecast(
+    site_id: int,
+    horizon: int = Query(7, description="Forecast horizon in days (7 or 30)"),
+    lookback: int = Query(90, description="Days of history to train on"),
+):
+    """Generate a Prophet-based energy usage forecast for a site."""
+    if horizon not in (7, 30):
+        raise HTTPException(status_code=400, detail="horizon must be 7 or 30")
+
+    from analyze.forecast import generate_forecast
+
+    try:
+        with get_connection() as conn:
+            result = generate_forecast(
+                conn,
+                site_id=site_id,
+                horizon_days=horizon,
+                lookback_days=lookback,
+            )
+        return result
+    except Exception as exc:
+        logger.error("Forecast error for site %s: %s", site_id, exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/api/analytics/cost-optimization/{site_id}", dependencies=[Depends(require_auth)])
+def analytics_cost_optimization(
+    site_id: int,
+    days: int = Query(30, description="Number of days to analyze"),
+    flat_rate: float = Query(0.12, description="Current flat rate $/kWh"),
+):
+    """Full cost optimization report: TOU analysis + demand charge analysis."""
+    from analyze.cost_model import generate_cost_optimization_report
+
+    try:
+        with get_connection() as conn:
+            result = generate_cost_optimization_report(
+                conn,
+                site_id=site_id,
+                days=days,
+                flat_rate=flat_rate,
+            )
+        return result
+    except Exception as exc:
+        logger.error("Cost optimization error for site %s: %s", site_id, exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/api/analytics/tou/{site_id}", dependencies=[Depends(require_auth)])
+def analytics_tou(
+    site_id: int,
+    days: int = Query(30, description="Number of days to analyze"),
+    flat_rate: float = Query(0.12, description="Current flat rate $/kWh"),
+):
+    """Time-of-Use rate analysis only."""
+    from analyze.cost_model import analyze_tou_costs
+
+    try:
+        with get_connection() as conn:
+            result = analyze_tou_costs(
+                conn,
+                site_id=site_id,
+                days=days,
+                flat_rate=flat_rate,
+            )
+        return result
+    except Exception as exc:
+        logger.error("TOU analysis error for site %s: %s", site_id, exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/api/analytics/demand/{site_id}", dependencies=[Depends(require_auth)])
+def analytics_demand(
+    site_id: int,
+    days: int = Query(30, description="Number of days to analyze"),
+):
+    """Peak demand charge analysis only."""
+    from analyze.cost_model import analyze_demand_charges
+
+    try:
+        with get_connection() as conn:
+            result = analyze_demand_charges(
+                conn,
+                site_id=site_id,
+                days=days,
+            )
+        return result
+    except Exception as exc:
+        logger.error("Demand analysis error for site %s: %s", site_id, exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+# ---------------------------------------------------------------------------
+# Eniscope API proxy routes
+# ---------------------------------------------------------------------------
+@app.get("/api/eniscope/readings/{channel_id}", dependencies=[Depends(require_auth)])
+async def eniscope_readings(
+    channel_id: str,
+    request: Request,
+):
+    """Proxy Eniscope readings API."""
+    query = dict(request.query_params)
+
+    params: Dict[str, Any] = {
+        "res": query.get("res", "3600"),
+        "action": query.get("action", "summarize"),
+        "showCounters": query.get("showCounters", "0"),
+    }
+
+    # Handle fields
+    fields = query.get("fields") or query.get("fields[]")
+    if fields:
+        fields_list = fields if isinstance(fields, list) else [fields]
+        params["fields[]"] = fields_list
+    else:
+        params["fields[]"] = ["E", "P", "V", "I", "PF"]
+
+    # Handle daterange
+    daterange = query.get("daterange") or query.get("daterange[]")
+    if daterange:
+        if isinstance(daterange, list):
+            params["daterange[]"] = daterange
+        else:
+            params["daterange"] = daterange
+
+    try:
+        data = await eniscope_proxy.make_request(
+            f"/v1/1/readings/{channel_id}", params
+        )
+        # Normalize response
+        if isinstance(data, dict):
+            return data.get("records") or data.get("data") or data.get("result") or data
+        return data
+    except Exception as exc:
+        logger.error("Eniscope readings proxy error: %s", exc)
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@app.get("/api/eniscope/channels", dependencies=[Depends(require_auth)])
+async def eniscope_channels(
+    organization: Optional[str] = None,
+    deviceId: Optional[str] = None,
+    name: Optional[str] = None,
+    page: Optional[int] = None,
+    limit: Optional[int] = None,
+):
+    """Proxy Eniscope channels API."""
+    params: Dict[str, Any] = {}
+    if organization:
+        params["organization"] = organization
+    if deviceId:
+        params["deviceId"] = deviceId
+    if name:
+        params["name"] = name
+    if page:
+        params["page"] = page
+    if limit:
+        params["limit"] = limit
+
+    try:
+        return await eniscope_proxy.make_request("/v1/1/channels", params)
+    except Exception as exc:
+        logger.error("Eniscope channels proxy error: %s", exc)
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@app.get("/api/eniscope/devices", dependencies=[Depends(require_auth)])
+async def eniscope_devices(
+    organization: Optional[str] = None,
+    uuid: Optional[str] = None,
+    deviceType: Optional[str] = None,
+    name: Optional[str] = None,
+    page: Optional[int] = None,
+    limit: Optional[int] = None,
+):
+    """Proxy Eniscope devices API."""
+    params: Dict[str, Any] = {}
+    if organization:
+        params["organization"] = organization
+    if uuid:
+        params["uuid"] = uuid
+    if deviceType:
+        params["deviceType"] = deviceType
+    if name:
+        params["name"] = name
+    if page:
+        params["page"] = page
+    if limit:
+        params["limit"] = limit
+
+    try:
+        return await eniscope_proxy.make_request("/v1/1/devices", params)
+    except Exception as exc:
+        logger.error("Eniscope devices proxy error: %s", exc)
+        raise HTTPException(status_code=502, detail=str(exc)) from exc

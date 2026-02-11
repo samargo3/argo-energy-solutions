@@ -1,47 +1,40 @@
-import axios from 'axios';
+/**
+ * Shared Axios instance with automatic auth-token injection.
+ *
+ * All API calls should go through this client so the Bearer token
+ * (from localStorage) is attached to every request.
+ */
 
-const API_URL = import.meta.env.VITE_BEST_ENERGY_API_URL || 'https://api.best.energy';
-const API_KEY = import.meta.env.VITE_BEST_ENERGY_API_KEY || '';
-const API_TIMEOUT = parseInt(import.meta.env.VITE_API_TIMEOUT || '30000', 10);
+import axios from 'axios'
 
-export const apiClient = axios.create({
-  baseURL: API_URL,
-  timeout: API_TIMEOUT,
-  headers: {
-    'Content-Type': 'application/json',
-    ...(API_KEY && { 'Authorization': `Bearer ${API_KEY}` }),
-  },
-});
+const TOKEN_KEY = 'argo_auth_token'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
 
-// Request interceptor for adding auth tokens or modifying requests
-apiClient.interceptors.request.use(
-  (config) => {
-    // Add any request modifications here
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
+const apiClient = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 30_000,
+  headers: { 'Content-Type': 'application/json' },
+})
+
+// Attach Bearer token to every request
+apiClient.interceptors.request.use((config) => {
+  const token = localStorage.getItem(TOKEN_KEY)
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
   }
-);
+  return config
+})
 
-// Response interceptor for error handling
+// On 401, clear token so the login page shows
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Handle common errors
-    if (error.response) {
-      // Server responded with error status
-      console.error('API Error:', error.response.status, error.response.data);
-    } else if (error.request) {
-      // Request was made but no response received
-      console.error('Network Error:', error.request);
-    } else {
-      // Something else happened
-      console.error('Error:', error.message);
+    if (error.response?.status === 401) {
+      localStorage.removeItem(TOKEN_KEY)
+      window.location.reload()
     }
-    return Promise.reject(error);
-  }
-);
+    return Promise.reject(error)
+  },
+)
 
-export default apiClient;
-
+export default apiClient

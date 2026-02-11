@@ -50,6 +50,8 @@ from analyze import (
     analyze_anomalies,
     analyze_spikes,
     generate_quick_wins,
+    generate_forecast,
+    generate_cost_optimization_report,
 )
 
 configure_logging()
@@ -95,14 +97,17 @@ class DatabaseDataFetcher:
                 }
     
     def fetch_channels(self, site_id: int) -> List[Dict[str, Any]]:
-        """Fetch all channels for a site"""
+        """Fetch all channels for a site via v_meters (Layer 3)."""
         with self._get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute("""
-                    SELECT channel_id, channel_name, channel_type, unit
-                    FROM channels
-                    WHERE organization_id = %s
-                    ORDER BY channel_name
+                    SELECT meter_id   AS channel_id,
+                           meter_name AS channel_name,
+                           channel_type,
+                           unit
+                    FROM v_meters
+                    WHERE site_id = %s
+                    ORDER BY meter_name
                 """, (str(site_id),))
                 
                 return [dict(row) for row in cur.fetchall()]
@@ -113,7 +118,7 @@ class DatabaseDataFetcher:
         start_date: datetime,
         end_date: datetime
     ) -> List[Dict[str, Any]]:
-        """Fetch readings for a channel in a date range"""
+        """Fetch readings for a channel in a date range via v_readings_enriched (Layer 3)."""
         with self._get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute("""
@@ -124,8 +129,8 @@ class DatabaseDataFetcher:
                         voltage_v,
                         current_a,
                         power_factor
-                    FROM readings
-                    WHERE channel_id = %s
+                    FROM v_readings_enriched
+                    WHERE meter_id = %s
                         AND timestamp >= %s
                         AND timestamp <= %s
                     ORDER BY timestamp
@@ -359,7 +364,50 @@ def generate_weekly_brief(options: Dict[str, Any]) -> Dict[str, Any]:
     }
     quick_wins = generate_quick_wins(analytics_dict, config)
     print(f"   Generated {len(quick_wins)} recommendation(s)\n")
-    
+
+    # ── Phase 6: Forecasting & Cost Optimization ──────────────────
+    print('6. Generating 7-day energy forecast...')
+    forecast_result = {}
+    try:
+        raw_conn = psycopg2.connect(data_fetcher.db_url)
+        try:
+            forecast_result = generate_forecast(
+                raw_conn,
+                site_id=site_id,
+                horizon_days=7,
+                lookback_days=config.get('forecast', {}).get('lookbackDays', 90),
+            )
+            summary_f = forecast_result.get('summary', {})
+            print(f"   Forecast: {summary_f.get('forecast_hours', 0)} hours, "
+                  f"{summary_f.get('total_predicted_kwh', 0):.0f} kWh predicted\n")
+        finally:
+            raw_conn.close()
+    except Exception as exc:
+        logger.warning("Forecast generation failed (non-fatal): %s", exc)
+        forecast_result = {'error': str(exc)}
+        print(f"   Forecast skipped: {exc}\n")
+
+    print('7. Running cost optimization analysis...')
+    cost_result = {}
+    try:
+        raw_conn = psycopg2.connect(data_fetcher.db_url)
+        try:
+            cost_result = generate_cost_optimization_report(
+                raw_conn,
+                site_id=site_id,
+                days=30,
+                flat_rate=config['tariff']['defaultRate'],
+            )
+            combined = cost_result.get('combined_summary', {})
+            print(f"   Monthly savings potential: "
+                  f"${combined.get('estimated_monthly_savings_potential', 0):.0f}/month\n")
+        finally:
+            raw_conn.close()
+    except Exception as exc:
+        logger.warning("Cost optimization analysis failed (non-fatal): %s", exc)
+        cost_result = {'error': str(exc)}
+        print(f"   Cost analysis skipped: {exc}\n")
+
     # Build report structure
     report = {
         'metadata': {
@@ -387,6 +435,8 @@ def generate_weekly_brief(options: Dict[str, Any]) -> Dict[str, Any]:
                 'weeklyKwh': after_hours_waste['summary']['totalExcessKwh'] + anomalies['totalExcessKwh'],
                 'weeklyCost': after_hours_waste['summary']['totalExcessCost'] + (anomalies['totalExcessKwh'] * config['tariff']['defaultRate']),
                 'estimatedAnnual': (after_hours_waste['summary']['totalExcessCost'] + (anomalies['totalExcessKwh'] * config['tariff']['defaultRate'])) * 52,
+                'costOptimizationMonthly': cost_result.get('combined_summary', {}).get('estimated_monthly_savings_potential', 0),
+                'costOptimizationAnnual': cost_result.get('combined_summary', {}).get('estimated_annual_savings_potential', 0),
             },
         },
         
@@ -428,6 +478,16 @@ def generate_weekly_brief(options: Dict[str, Any]) -> Dict[str, Any]:
             },
             
             'quickWins': quick_wins,
+
+            'forecast': forecast_result if not forecast_result.get('error') else {
+                'status': 'unavailable',
+                'reason': forecast_result.get('error', 'Unknown'),
+            },
+
+            'costOptimization': cost_result if not cost_result.get('error') else {
+                'status': 'unavailable',
+                'reason': cost_result.get('error', 'Unknown'),
+            },
         },
         
         'charts': {

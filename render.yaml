@@ -1,0 +1,49 @@
+# Render Blueprint — deploy frontend + backend in one click
+# https://render.com/docs/blueprint-spec
+
+services:
+  # ── FastAPI Backend ─────────────────────────────────────────
+  - type: web
+    name: argo-energy-api
+    runtime: python
+    plan: free
+    buildCommand: "pip install -r backend/python_scripts/requirements.txt && pip install -e backend/python_scripts/"
+    startCommand: "uvicorn backend.server.main:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: DATABASE_URL
+        sync: false          # set manually in Render dashboard
+      - key: ENISCOPE_API_URL
+        sync: false
+      - key: ENISCOPE_API_KEY
+        sync: false
+      - key: ENISCOPE_EMAIL
+        sync: false
+      - key: ENISCOPE_PASSWORD
+        sync: false
+      - key: API_SECRET_KEY
+        sync: false
+      - key: APP_PASSWORD
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
+      - key: ENVIRONMENT
+        value: production
+      - key: CORS_ORIGIN
+        sync: false          # set to your frontend URL after first deploy
+      - key: PYTHON_VERSION
+        value: "3.9.18"
+
+  # ── React Frontend (Static Site) ────────────────────────────
+  - type: web
+    name: argo-energy-web
+    runtime: static
+    plan: free
+    buildCommand: "npm ci && npm run build"
+    staticPublishPath: ./dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_BASE_URL
+        sync: false          # set to https://argo-energy-api.onrender.com after first deploy

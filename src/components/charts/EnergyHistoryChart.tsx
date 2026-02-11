@@ -16,6 +16,7 @@ import {
   AlertTriangle,
   RefreshCw,
 } from 'lucide-react'
+import apiClient from '../../services/api/apiClient'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -46,7 +47,6 @@ interface ChartPoint {
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-const API_URL = 'http://localhost:8000/api/energy/history'
 const BLUE = '#2563eb'
 
 // ---------------------------------------------------------------------------
@@ -103,9 +103,8 @@ export default function EnergyHistoryChart() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(API_URL)
-      if (!res.ok) throw new Error(`Server responded ${res.status}`)
-      const json: ApiResponse = await res.json()
+      const res = await apiClient.get<ApiResponse>('/api/energy/history')
+      const json = res.data
 
       setMeta(json.meta)
       setData(

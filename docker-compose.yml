@@ -1,0 +1,30 @@
+# Argo Energy — local development with Docker
+#
+# Usage:
+#   docker compose up --build
+#
+# Frontend: http://localhost:3000
+# API:      http://localhost:8000
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        VITE_API_BASE_URL: ""   # empty = same-origin; nginx proxies /api → api:8000
+    ports:
+      - "3000:80"
+    depends_on:
+      - api
+    restart: unless-stopped
