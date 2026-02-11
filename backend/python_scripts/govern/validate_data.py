@@ -9,6 +9,7 @@ Performs comprehensive checks on the Neon PostgreSQL database to ensure:
 - Anomaly detection
 """
 
+import json
 import os
 import sys
 import psycopg2
@@ -152,10 +153,18 @@ class DataValidator:
             else:
                 print(f"   ✅ All {days_with_data} days have data")
         
-        # Check for channels with no recent data (last 24 hours)
+        # Check for active channels with no recent data (last 24 hours)
+        # Only checks channels that have at least 100 readings (i.e. actively synced)
         cur.execute("""
+            WITH active_channels AS (
+                SELECT channel_id
+                FROM readings
+                GROUP BY channel_id
+                HAVING COUNT(*) >= 100
+            )
             SELECT c.channel_id, c.channel_name
             FROM channels c
+            INNER JOIN active_channels ac ON c.channel_id = ac.channel_id
             LEFT JOIN (
                 SELECT channel_id, MAX(timestamp) as last_reading
                 FROM readings
@@ -165,12 +174,12 @@ class DataValidator:
             WHERE r.last_reading IS NULL
         """)
         stale_channels = cur.fetchall()
-        
+
         if stale_channels:
-            self.warnings.append(f"{len(stale_channels)} channels have no data in last 24 hours")
-            print(f"   ⚠️  {len(stale_channels)} channels with no recent data")
+            self.warnings.append(f"{len(stale_channels)} active channels have no data in last 24 hours")
+            print(f"   ⚠️  {len(stale_channels)} active channels with no recent data")
         else:
-            print(f"   ✅ All channels have recent data (last 24h)")
+            print(f"   ✅ All active channels have recent data (last 24h)")
         
         cur.close()
         print()
@@ -379,44 +388,51 @@ class DataValidator:
         print()
     
     def check_pipeline_freshness(self):
-        """Check that fresh data is arriving from the ingestion pipeline"""
+        """Check that fresh data is arriving from the ingestion pipeline.
+
+        Only considers *active* channels (those with at least 100 readings)
+        so that channels which were never synced don't trigger false alarms.
+        """
         print("📝 Checking Pipeline Freshness...")
         cur = self.conn.cursor()
 
-        # Check the most recent reading per channel
+        # Check the most recent reading per channel, filtering to active channels only
         cur.execute("""
             SELECT
                 r.channel_id,
                 c.channel_name,
                 MAX(r.timestamp) as last_reading,
-                EXTRACT(EPOCH FROM (NOW() - MAX(r.timestamp))) / 3600 as hours_since_last
+                EXTRACT(EPOCH FROM (NOW() - MAX(r.timestamp))) / 3600 as hours_since_last,
+                COUNT(*) as reading_count
             FROM readings r
             LEFT JOIN channels c ON r.channel_id = c.channel_id
             GROUP BY r.channel_id, c.channel_name
+            HAVING COUNT(*) >= 100
             ORDER BY last_reading DESC
         """)
         channels = cur.fetchall()
 
         if not channels:
-            self.issues.append("No readings in database")
-            print(f"   ❌ No readings found in database")
+            self.issues.append("No active channels with sufficient data in database")
+            print(f"   ❌ No active channels found in database")
         else:
             newest = channels[0]
             hours_since = newest[3]
 
             print(f"   🕐 Most recent reading: {newest[2]} ({hours_since:.0f}h ago)")
+            print(f"   📊 Active channels checked: {len(channels)}")
 
             stale_channels = [ch for ch in channels if ch[3] and ch[3] > 36]
 
             if stale_channels:
-                self.warnings.append(f"{len(stale_channels)} channels have no data in last 36 hours")
-                print(f"   ⚠️  {len(stale_channels)} channels stale (>36h since last reading):")
+                self.warnings.append(f"{len(stale_channels)} active channels have no data in last 36 hours")
+                print(f"   ⚠️  {len(stale_channels)} active channels stale (>36h since last reading):")
                 for ch in stale_channels[:3]:
                     print(f"      {ch[1]} (ID: {ch[0]}): last reading {ch[3]:.0f}h ago")
             else:
-                print(f"   ✅ All {len(channels)} channels have fresh data (within 36h)")
+                print(f"   ✅ All {len(channels)} active channels have fresh data (within 36h)")
 
-            # Warn if the entire pipeline appears down (>48h for best channel)
+            # Only flag pipeline-down if the *best* active channel is stale >48h
             if hours_since and hours_since > 48:
                 self.issues.append(f"Pipeline may be down: no data in {hours_since:.0f} hours")
                 print(f"   ❌ Pipeline may be down — no fresh data in {hours_since:.0f}h")
@@ -424,6 +440,34 @@ class DataValidator:
         cur.close()
         print()
     
+    def save_to_history(self, passed: bool):
+        """Persist validation results to data_quality_history table."""
+        try:
+            cur = self.conn.cursor()
+            cur.execute("""
+                INSERT INTO data_quality_history
+                    (total_channels, active_channels, total_readings,
+                     issues_count, warnings_count, passed,
+                     avg_completeness_pct, issues, warnings, stats)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (
+                self.stats.get('channel_count', 0),
+                self.stats.get('channel_count', 0),
+                self.stats.get('total_readings', 0),
+                len(self.issues),
+                len(self.warnings),
+                passed,
+                None,  # can be enriched later
+                json.dumps(self.issues),
+                json.dumps(self.warnings),
+                json.dumps(self.stats, default=str),
+            ))
+            self.conn.commit()
+            logger.info("Saved validation results to data_quality_history")
+        except Exception as exc:
+            logger.warning("Could not save to data_quality_history: %s", exc)
+            self.conn.rollback()
+
     def print_summary(self):
         """Print validation summary"""
         print("=" * 70)
@@ -470,6 +514,7 @@ def main():
         validator.connect()
         validator.run_all_checks()
         passed = validator.print_summary()
+        validator.save_to_history(passed)
         validator.close()
 
         # Exit with appropriate code

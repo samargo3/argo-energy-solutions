@@ -410,35 +410,65 @@ class PostgresDB:
             self.conn.rollback()
             return False
     
+    @staticmethod
+    def _validate_reading(r: Dict, channel_id: int) -> Optional[str]:
+        """Validate a single reading. Returns rejection reason or None if valid."""
+        if r.get('timestamp') is None:
+            return "null_timestamp"
+        energy = r.get('energy_kwh')
+        power = r.get('power_kw')
+        voltage = r.get('voltage_v')
+        pf = r.get('power_factor')
+        if energy is not None and energy < 0:
+            return f"negative_energy={energy}"
+        if power is not None and power < 0:
+            return f"negative_power={power}"
+        if power is not None and power > 5000:
+            return f"extreme_power={power}"
+        if voltage is not None and (voltage < 50 or voltage > 600):
+            return f"voltage_out_of_range={voltage}"
+        if pf is not None and (pf < -1 or pf > 1):
+            return f"power_factor_invalid={pf}"
+        # Reject if both energy and power are null (no useful data)
+        if energy is None and power is None:
+            return "both_energy_and_power_null"
+        return None
+
     def insert_readings(self, channel_id: int, readings: List[Dict]) -> int:
-        """Batch insert readings."""
+        """Batch insert readings with pre-insertion validation."""
         if not readings:
             return 0
-        
+
         inserted = 0
+        rejected_count = 0
+        rejection_reasons: Dict[str, int] = {}
         batch_size = 1000
-        
+
         with self.conn.cursor() as cur:
             for i in range(0, len(readings), batch_size):
                 batch = readings[i:i + batch_size]
-                
-                # Filter out readings with null timestamps
-                valid_batch = [
-                    (channel_id,
-                     datetime.fromtimestamp(r['timestamp']) if isinstance(r['timestamp'], (int, float)) 
-                     else datetime.fromisoformat(str(r['timestamp']).replace('Z', '+00:00')),
-                     r['energy_kwh'],
-                     r['power_kw'],
-                     r['voltage_v'],
-                     r['current_a'],
-                     r['power_factor'])
-                    for r in batch
-                    if r.get('timestamp') is not None
-                ]
-                
+
+                valid_batch = []
+                for r in batch:
+                    reason = self._validate_reading(r, channel_id)
+                    if reason:
+                        rejected_count += 1
+                        rejection_reasons[reason] = rejection_reasons.get(reason, 0) + 1
+                        continue
+                    valid_batch.append(
+                        (channel_id,
+                         datetime.fromtimestamp(r['timestamp']) if isinstance(r['timestamp'], (int, float))
+                         else datetime.fromisoformat(str(r['timestamp']).replace('Z', '+00:00')),
+                         r['energy_kwh'],
+                         r['power_kw'],
+                         r['voltage_v'],
+                         r['current_a'],
+                         r['power_factor'])
+                    )
+
                 if not valid_batch:
                     continue
-                
+
                 try:
                     execute_batch(cur, """
                         INSERT INTO readings (channel_id, timestamp, energy_kwh, power_kw,
@@ -448,14 +478,28 @@ class PostgresDB:
                             current_a = COALESCE(EXCLUDED.current_a, readings.current_a),
                             power_factor = COALESCE(EXCLUDED.power_factor, readings.power_factor)
                     """, valid_batch)
-                    
+
                     inserted += cur.rowcount
                 except Exception as e:
                     print(f"   Error inserting batch: {e}")
                     self.conn.rollback()
                     continue
-        
+
         self.conn.commit()
+
+        if rejected_count > 0:
+            reasons_str = ", ".join(f"{k}={v}" for k, v in rejection_reasons.items())
+            logger.warning(
+                "Rejected readings during ingestion",
+                extra={
+                    "channel_id": channel_id,
+                    "rejected": rejected_count,
+                    "accepted": inserted,
+                    "reasons": rejection_reasons,
+                },
+            )
+            print(f"   ⚠️  Rejected {rejected_count} readings: {reasons_str}")
+
         return inserted
     
     def get_total_readings(self) -> int:

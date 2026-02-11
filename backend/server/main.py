@@ -21,6 +21,10 @@ Endpoints:
     /api/eniscope/readings/{channelId}          — Eniscope API proxy
     /api/eniscope/channels                      — Eniscope API proxy
     /api/eniscope/devices                       — Eniscope API proxy
+    /api/reports/weekly/{site_id}/latest         — latest weekly brief JSON
+    /api/reports/weekly/{site_id}                — list available weekly reports
+    /api/reports/weekly/{site_id}/{filename}     — specific report by filename
+    /api/reports/data-quality/{site_id}          — live data quality summary
 
 Usage:
     uvicorn backend.server.main:app --reload --port 8000
@@ -28,8 +32,10 @@ Usage:
 """
 
 import asyncio
+import glob as globmod
 import hashlib
 import hmac
+import json
 import logging
 import os
 import secrets
@@ -849,3 +855,112 @@ async def eniscope_devices(
     except Exception as exc:
         logger.error("Eniscope devices proxy error: %s", exc)
         raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+# ---------------------------------------------------------------------------
+# Reports endpoints
+# ---------------------------------------------------------------------------
+_REPORTS_DIR = _PROJECT_ROOT / "reports"
+
+
+def _find_reports(site_id: str, pattern: str) -> List[Path]:
+    """Find report files matching a site and glob pattern, newest first."""
+    matches = sorted(
+        _REPORTS_DIR.glob(f"{pattern}-{site_id}-*.json"),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
+    return matches
+
+
+@app.get("/api/reports/weekly/{site_id}/latest", dependencies=[Depends(require_auth)])
+async def get_latest_weekly_report(site_id: str):
+    """Return the most recent weekly brief JSON for a site."""
+    reports = _find_reports(site_id, "weekly-brief")
+    if not reports:
+        raise HTTPException(status_code=404, detail=f"No weekly reports found for site {site_id}")
+    try:
+        return json.loads(reports[0].read_text())
+    except Exception as exc:
+        logger.error("Error reading report %s: %s", reports[0], exc)
+        raise HTTPException(status_code=500, detail="Failed to read report") from exc
+
+
+@app.get("/api/reports/weekly/{site_id}", dependencies=[Depends(require_auth)])
+async def list_weekly_reports(site_id: str, limit: int = Query(10, ge=1, le=100)):
+    """List available weekly brief reports for a site."""
+    reports = _find_reports(site_id, "weekly-brief")
+    return [
+        {
+            "filename": r.name,
+            "generated_at": datetime.fromtimestamp(r.stat().st_mtime).isoformat(),
+            "size_kb": round(r.stat().st_size / 1024, 1),
+        }
+        for r in reports[:limit]
+    ]
+
+
+@app.get("/api/reports/weekly/{site_id}/{filename}", dependencies=[Depends(require_auth)])
+async def get_weekly_report_by_name(site_id: str, filename: str):
+    """Return a specific weekly report by filename."""
+    # Prevent path traversal
+    if ".." in filename or "/" in filename:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+    report_path = _REPORTS_DIR / filename
+    if not report_path.exists() or site_id not in filename:
+        raise HTTPException(status_code=404, detail="Report not found")
+    try:
+        return json.loads(report_path.read_text())
+    except Exception as exc:
+        logger.error("Error reading report %s: %s", report_path, exc)
+        raise HTTPException(status_code=500, detail="Failed to read report") from exc
+
+
+@app.get("/api/reports/data-quality/{site_id}", dependencies=[Depends(require_auth)])
+async def get_data_quality_summary(site_id: str):
+    """Return current data quality metrics for a site."""
+    with get_conn() as conn:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+
+        # Channel completeness for last 7 days
+        cur.execute("""
+            WITH active_channels AS (
+                SELECT r.channel_id, c.channel_name,
+                       COUNT(*) as total_readings,
+                       MAX(r.timestamp) as last_reading,
+                       EXTRACT(EPOCH FROM (NOW() - MAX(r.timestamp))) / 3600 as hours_since_last
+                FROM readings r
+                JOIN channels c ON r.channel_id = c.channel_id
+                WHERE c.organization_id = %s::int
+                GROUP BY r.channel_id, c.channel_name
+                HAVING COUNT(*) >= 100
+            ),
+            recent AS (
+                SELECT ac.channel_id, ac.channel_name,
+                       ac.total_readings, ac.last_reading, ac.hours_since_last,
+                       COUNT(r.timestamp) as readings_last_7d
+                FROM active_channels ac
+                LEFT JOIN readings r ON r.channel_id = ac.channel_id
+                    AND r.timestamp > NOW() - INTERVAL '7 days'
+                GROUP BY ac.channel_id, ac.channel_name,
+                         ac.total_readings, ac.last_reading, ac.hours_since_last
+            )
+            SELECT *,
+                   ROUND(readings_last_7d * 100.0 / NULLIF(7 * 24, 0), 1) as completeness_pct
+            FROM recent
+            ORDER BY completeness_pct ASC
+        """, (site_id,))
+        channels = cur.fetchall()
+
+        avg_completeness = (
+            sum(ch["completeness_pct"] or 0 for ch in channels) / len(channels)
+            if channels else 0
+        )
+
+        return {
+            "site_id": site_id,
+            "checked_at": datetime.utcnow().isoformat(),
+            "active_channels": len(channels),
+            "avg_completeness_pct": round(avg_completeness, 1),
+            "channels": channels,
+        }
