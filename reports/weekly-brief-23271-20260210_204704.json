@@ -1,0 +1,1845 @@
+{
+  "metadata": {
+    "generatedAt": "2026-02-10T20:47:21.557908",
+    "reportVersion": "1.0.0-python",
+    "site": {
+      "siteId": 23271,
+      "siteName": "Site 23271",
+      "address": "N/A"
+    },
+    "period": {
+      "start": "2026-02-02T00:00:00-05:00",
+      "end": "2026-02-08T23:59:59-05:00",
+      "timezone": "America/New_York"
+    },
+    "baseline": {
+      "start": "2026-01-05T00:00:00-05:00",
+      "end": "2026-02-01T23:59:59-05:00",
+      "weeksCount": 4
+    },
+    "dataResolution": "3600s (60min)"
+  },
+  "summary": {
+    "headline": [
+      "8 critical data quality issue(s) detected"
+    ],
+    "topRisks": [
+      "Missing data on 8 channel(s)"
+    ],
+    "topOpportunities": [
+      "Continue monitoring for optimization opportunities"
+    ],
+    "totalPotentialSavings": {
+      "weeklyKwh": 0,
+      "weeklyCost": 0.0,
+      "estimatedAnnual": 0.0,
+      "costOptimizationMonthly": 140.25,
+      "costOptimizationAnnual": 1683.0
+    }
+  },
+  "sections": {
+    "sensorHealth": {
+      "summary": [
+        {
+          "type": "stale_data",
+          "count": 8,
+          "affectedChannels": 8,
+          "description": "8 stale_data issue(s) affecting 8 channel(s): CDKH_Kitchen Panel(small)_WCDS_Wilson Ctr, RTU-3_WCDS_Wilson Ctr, CDPK_Kitchen Main Panel(s)_WCDS_Wilson Ctr and 5 more"
+        },
+        {
+          "type": "missing_data",
+          "count": 6,
+          "affectedChannels": 1,
+          "description": "6 missing_data issue(s) affecting 1 channel(s): AHU-1A_WCDS_Wilson Ctr"
+        }
+      ],
+      "totalIssues": 14,
+      "bySeverity": {
+        "high": 8,
+        "medium": 6,
+        "low": 0
+      },
+      "issues": [
+        {
+          "type": "stale_data",
+          "severity": "high",
+          "channelId": 162122,
+          "channelName": "AHU-1A_WCDS_Wilson Ctr",
+          "lastReading": "2026-02-09 04:00:00+00:00",
+          "hoursSince": "45.8",
+          "description": "No data for 45.8 hours (last: 2026-02-09 04:00:00)",
+          "source": "inferred_from_timestamps"
+        },
+        {
+          "type": "stale_data",
+          "severity": "high",
+          "channelId": 162123,
+          "channelName": "AHU-1B_WCDS_Wilson Ctr",
+          "lastReading": "2026-02-09 04:00:00+00:00",
+          "hoursSince": "45.8",
+          "description": "No data for 45.8 hours (last: 2026-02-09 04:00:00)",
+          "source": "inferred_from_timestamps"
+        },
+        {
+          "type": "stale_data",
+          "severity": "high",
+          "channelId": 162121,
+          "channelName": "AHU-2_WCDS_Wilson Ctr",
+          "lastReading": "2026-02-09 04:00:00+00:00",
+          "hoursSince": "45.8",
+          "description": "No data for 45.8 hours (last: 2026-02-09 04:00:00)",
+          "source": "inferred_from_timestamps"
+        },
+        {
+          "type": "stale_data",
+          "severity": "high",
+          "channelId": 162319,
+          "channelName": "CDKH_Kitchen Panel(small)_WCDS_Wilson Ctr",
+          "lastReading": "2026-02-09 04:00:00+00:00",
+          "hoursSince": "45.8",
+          "description": "No data for 45.8 hours (last: 2026-02-09 04:00:00)",
+          "source": "inferred_from_timestamps"
+        },
+        {
+          "type": "stale_data",
+          "severity": "high",
+          "channelId": 162285,
+          "channelName": "CDPK_Kitchen Main Panel(s)_WCDS_Wilson Ctr",
+          "lastReading": "2026-02-09 04:00:00+00:00",
+          "hoursSince": "45.8",
+          "description": "No data for 45.8 hours (last: 2026-02-09 04:00:00)",
+          "source": "inferred_from_timestamps"
+        },
+        {
+          "type": "stale_data",
+          "severity": "high",
+          "channelId": 162320,
+          "channelName": "RTU-1_WCDS_Wilson Ctr",
+          "lastReading": "2026-02-09 04:00:00+00:00",
+          "hoursSince": "45.8",
+          "description": "No data for 45.8 hours (last: 2026-02-09 04:00:00)",
+          "source": "inferred_from_timestamps"
+        },
+        {
+          "type": "stale_data",
+          "severity": "high",
+          "channelId": 162119,
+          "channelName": "RTU-2_WCDS_Wilson Ctr",
+          "lastReading": "2026-02-09 04:00:00+00:00",
+          "hoursSince": "45.8",
+          "description": "No data for 45.8 hours (last: 2026-02-09 04:00:00)",
+          "source": "inferred_from_timestamps"
+        },
+        {
+          "type": "stale_data",
+          "severity": "high",
+          "channelId": 162120,
+          "channelName": "RTU-3_WCDS_Wilson Ctr",
+          "lastReading": "2026-02-09 04:00:00+00:00",
+          "hoursSince": "45.8",
+          "description": "No data for 45.8 hours (last: 2026-02-09 04:00:00)",
+          "source": "inferred_from_timestamps"
+        },
+        {
+          "type": "missing_data",
+          "severity": "medium",
+          "channelId": 162122,
+          "channelName": "AHU-1A_WCDS_Wilson Ctr",
+          "start": "2026-02-02 22:00:00+00:00",
+          "end": "2026-02-03 01:00:00+00:00",
+          "missingIntervals": 2,
+          "duration": "3.0 hours",
+          "description": "Missing 2 intervals (3.0h gap)"
+        },
+        {
+          "type": "missing_data",
+          "severity": "medium",
+          "channelId": 162122,
+          "channelName": "AHU-1A_WCDS_Wilson Ctr",
+          "start": "2026-02-03 22:00:00+00:00",
+          "end": "2026-02-04 04:00:00+00:00",
+          "missingIntervals": 5,
+          "duration": "6.0 hours",
+          "description": "Missing 5 intervals (6.0h gap)"
+        },
+        {
+          "type": "missing_data",
+          "severity": "medium",
+          "channelId": 162122,
+          "channelName": "AHU-1A_WCDS_Wilson Ctr",
+          "start": "2026-02-04 22:00:00+00:00",
+          "end": "2026-02-05 06:00:00+00:00",
+          "missingIntervals": 7,
+          "duration": "8.0 hours",
+          "description": "Missing 7 intervals (8.0h gap)"
+        },
+        {
+          "type": "missing_data",
+          "severity": "medium",
+          "channelId": 162122,
+          "channelName": "AHU-1A_WCDS_Wilson Ctr",
+          "start": "2026-02-05 22:00:00+00:00",
+          "end": "2026-02-06 03:00:00+00:00",
+          "missingIntervals": 4,
+          "duration": "5.0 hours",
+          "description": "Missing 4 intervals (5.0h gap)"
+        },
+        {
+          "type": "missing_data",
+          "severity": "medium",
+          "channelId": 162122,
+          "channelName": "AHU-1A_WCDS_Wilson Ctr",
+          "start": "2026-02-06 22:00:00+00:00",
+          "end": "2026-02-07 06:00:00+00:00",
+          "missingIntervals": 7,
+          "duration": "8.0 hours",
+          "description": "Missing 7 intervals (8.0h gap)"
+        },
+        {
+          "type": "missing_data",
+          "severity": "medium",
+          "channelId": 162122,
+          "channelName": "AHU-1A_WCDS_Wilson Ctr",
+          "start": "2026-02-07 06:00:00+00:00",
+          "end": "2026-02-07 12:00:00+00:00",
+          "missingIntervals": 5,
+          "duration": "6.0 hours",
+          "description": "Missing 5 intervals (6.0h gap)"
+        }
+      ]
+    },
+    "afterHoursWaste": {
+      "summary": {
+        "totalMetersWithExcess": 0,
+        "totalExcessKwh": 0,
+        "totalExcessCost": 0,
+        "estimatedAnnualCost": 0
+      },
+      "topMeters": []
+    },
+    "anomalies": {
+      "summary": {
+        "totalEvents": 0,
+        "affectedChannels": 0,
+        "totalExcessKwh": 0
+      },
+      "timeline": [],
+      "byChannel": []
+    },
+    "spikes": {
+      "summary": {
+        "totalEvents": 0,
+        "affectedChannels": 0,
+        "totalExcessKwh": 0
+      },
+      "topSpikes": [],
+      "byChannel": []
+    },
+    "quickWins": [
+      {
+        "title": "Fix data communication issues on 8 meter(s)",
+        "type": "sensor_health",
+        "priority": "high",
+        "impact": {
+          "weeklyKwh": "N/A",
+          "weeklyCost": 0,
+          "annualCost": 0,
+          "description": "Missing data prevents accurate monitoring and may hide energy waste"
+        },
+        "description": "8 meter(s) have high-severity data issues: CDKH_Kitchen Panel(small)_WCDS_Wilson Ctr, RTU-3_WCDS_Wilson Ctr, CDPK_Kitchen Main Panel(s)_WCDS_Wilson Ctr. This prevents accurate energy monitoring and may be hiding consumption anomalies.",
+        "recommendations": [
+          "Check network connectivity and power to affected meters",
+          "Verify meter configuration and data logging settings",
+          "Contact meter vendor if issues persist",
+          "Consider replacing meters with repeated failures"
+        ],
+        "confidence": "high",
+        "owner": "Energy Manager / Facilities",
+        "effort": "Medium"
+      }
+    ],
+    "forecast": {
+      "forecast": [
+        {
+          "timestamp": "2026-02-10T04:00:00",
+          "predicted_kwh": 11.813,
+          "lower_bound": 6.563,
+          "upper_bound": 17.047
+        },
+        {
+          "timestamp": "2026-02-10T05:00:00",
+          "predicted_kwh": 12.1,
+          "lower_bound": 6.847,
+          "upper_bound": 17.695
+        },
+        {
+          "timestamp": "2026-02-10T06:00:00",
+          "predicted_kwh": 12.595,
+          "lower_bound": 7.215,
+          "upper_bound": 17.541
+        },
+        {
+          "timestamp": "2026-02-10T07:00:00",
+          "predicted_kwh": 12.787,
+          "lower_bound": 7.572,
+          "upper_bound": 18.364
+        },
+        {
+          "timestamp": "2026-02-10T08:00:00",
+          "predicted_kwh": 12.506,
+          "lower_bound": 7.168,
+          "upper_bound": 17.683
+        },
+        {
+          "timestamp": "2026-02-10T09:00:00",
+          "predicted_kwh": 12.193,
+          "lower_bound": 7.204,
+          "upper_bound": 17.511
+        },
+        {
+          "timestamp": "2026-02-10T10:00:00",
+          "predicted_kwh": 12.538,
+          "lower_bound": 6.965,
+          "upper_bound": 17.682
+        },
+        {
+          "timestamp": "2026-02-10T11:00:00",
+          "predicted_kwh": 13.824,
+          "lower_bound": 8.408,
+          "upper_bound": 19.101
+        },
+        {
+          "timestamp": "2026-02-10T12:00:00",
+          "predicted_kwh": 15.641,
+          "lower_bound": 10.175,
+          "upper_bound": 20.492
+        },
+        {
+          "timestamp": "2026-02-10T13:00:00",
+          "predicted_kwh": 17.227,
+          "lower_bound": 11.924,
+          "upper_bound": 22.524
+        },
+        {
+          "timestamp": "2026-02-10T14:00:00",
+          "predicted_kwh": 18.103,
+          "lower_bound": 12.751,
+          "upper_bound": 23.263
+        },
+        {
+          "timestamp": "2026-02-10T15:00:00",
+          "predicted_kwh": 18.361,
+          "lower_bound": 12.91,
+          "upper_bound": 23.536
+        },
+        {
+          "timestamp": "2026-02-10T16:00:00",
+          "predicted_kwh": 18.364,
+          "lower_bound": 12.806,
+          "upper_bound": 23.446
+        },
+        {
+          "timestamp": "2026-02-10T17:00:00",
+          "predicted_kwh": 18.196,
+          "lower_bound": 12.715,
+          "upper_bound": 23.266
+        },
+        {
+          "timestamp": "2026-02-10T18:00:00",
+          "predicted_kwh": 17.487,
+          "lower_bound": 11.998,
+          "upper_bound": 23.271
+        },
+        {
+          "timestamp": "2026-02-10T19:00:00",
+          "predicted_kwh": 15.829,
+          "lower_bound": 10.783,
+          "upper_bound": 21.206
+        },
+        {
+          "timestamp": "2026-02-10T20:00:00",
+          "predicted_kwh": 13.371,
+          "lower_bound": 7.933,
+          "upper_bound": 18.353
+        },
+        {
+          "timestamp": "2026-02-10T21:00:00",
+          "predicted_kwh": 10.952,
+          "lower_bound": 5.755,
+          "upper_bound": 16.457
+        },
+        {
+          "timestamp": "2026-02-10T22:00:00",
+          "predicted_kwh": 9.564,
+          "lower_bound": 4.302,
+          "upper_bound": 14.943
+        },
+        {
+          "timestamp": "2026-02-10T23:00:00",
+          "predicted_kwh": 9.586,
+          "lower_bound": 4.266,
+          "upper_bound": 14.955
+        },
+        {
+          "timestamp": "2026-02-11T00:00:00",
+          "predicted_kwh": 10.5,
+          "lower_bound": 5.313,
+          "upper_bound": 15.71
+        },
+        {
+          "timestamp": "2026-02-11T01:00:00",
+          "predicted_kwh": 11.356,
+          "lower_bound": 6.422,
+          "upper_bound": 16.611
+        },
+        {
+          "timestamp": "2026-02-11T02:00:00",
+          "predicted_kwh": 11.565,
+          "lower_bound": 6.505,
+          "upper_bound": 16.968
+        },
+        {
+          "timestamp": "2026-02-11T03:00:00",
+          "predicted_kwh": 11.292,
+          "lower_bound": 6.032,
+          "upper_bound": 16.312
+        },
+        {
+          "timestamp": "2026-02-11T04:00:00",
+          "predicted_kwh": 11.127,
+          "lower_bound": 5.819,
+          "upper_bound": 16.281
+        },
+        {
+          "timestamp": "2026-02-11T05:00:00",
+          "predicted_kwh": 11.417,
+          "lower_bound": 6.181,
+          "upper_bound": 16.657
+        },
+        {
+          "timestamp": "2026-02-11T06:00:00",
+          "predicted_kwh": 11.921,
+          "lower_bound": 6.822,
+          "upper_bound": 17.018
+        },
+        {
+          "timestamp": "2026-02-11T07:00:00",
+          "predicted_kwh": 12.128,
+          "lower_bound": 6.757,
+          "upper_bound": 17.412
+        },
+        {
+          "timestamp": "2026-02-11T08:00:00",
+          "predicted_kwh": 11.867,
+          "lower_bound": 6.838,
+          "upper_bound": 16.803
+        },
+        {
+          "timestamp": "2026-02-11T09:00:00",
+          "predicted_kwh": 11.578,
+          "lower_bound": 6.267,
+          "upper_bound": 16.405
+        },
+        {
+          "timestamp": "2026-02-11T10:00:00",
+          "predicted_kwh": 11.951,
+          "lower_bound": 6.965,
+          "upper_bound": 17.289
+        },
+        {
+          "timestamp": "2026-02-11T11:00:00",
+          "predicted_kwh": 13.267,
+          "lower_bound": 7.905,
+          "upper_bound": 18.751
+        },
+        {
+          "timestamp": "2026-02-11T12:00:00",
+          "predicted_kwh": 15.117,
+          "lower_bound": 9.936,
+          "upper_bound": 20.477
+        },
+        {
+          "timestamp": "2026-02-11T13:00:00",
+          "predicted_kwh": 16.736,
+          "lower_bound": 11.428,
+          "upper_bound": 22.031
+        },
+        {
+          "timestamp": "2026-02-11T14:00:00",
+          "predicted_kwh": 17.646,
+          "lower_bound": 12.33,
+          "upper_bound": 22.501
+        },
+        {
+          "timestamp": "2026-02-11T15:00:00",
+          "predicted_kwh": 17.939,
+          "lower_bound": 12.77,
+          "upper_bound": 22.933
+        },
+        {
+          "timestamp": "2026-02-11T16:00:00",
+          "predicted_kwh": 17.976,
+          "lower_bound": 12.736,
+          "upper_bound": 23.122
+        },
+        {
+          "timestamp": "2026-02-11T17:00:00",
+          "predicted_kwh": 17.842,
+          "lower_bound": 12.517,
+          "upper_bound": 23.038
+        },
+        {
+          "timestamp": "2026-02-11T18:00:00",
+          "predicted_kwh": 17.165,
+          "lower_bound": 12.109,
+          "upper_bound": 22.974
+        },
+        {
+          "timestamp": "2026-02-11T19:00:00",
+          "predicted_kwh": 15.538,
+          "lower_bound": 10.388,
+          "upper_bound": 20.607
+        },
+        {
+          "timestamp": "2026-02-11T20:00:00",
+          "predicted_kwh": 13.109,
+          "lower_bound": 7.823,
+          "upper_bound": 18.383
+        },
+        {
+          "timestamp": "2026-02-11T21:00:00",
+          "predicted_kwh": 10.718,
+          "lower_bound": 5.357,
+          "upper_bound": 16.017
+        },
+        {
+          "timestamp": "2026-02-11T22:00:00",
+          "predicted_kwh": 9.355,
+          "lower_bound": 4.15,
+          "upper_bound": 14.229
+        },
+        {
+          "timestamp": "2026-02-11T23:00:00",
+          "predicted_kwh": 9.4,
+          "lower_bound": 4.184,
+          "upper_bound": 14.803
+        },
+        {
+          "timestamp": "2026-02-12T00:00:00",
+          "predicted_kwh": 10.334,
+          "lower_bound": 5.064,
+          "upper_bound": 15.436
+        },
+        {
+          "timestamp": "2026-02-12T01:00:00",
+          "predicted_kwh": 11.209,
+          "lower_bound": 5.819,
+          "upper_bound": 16.455
+        },
+        {
+          "timestamp": "2026-02-12T02:00:00",
+          "predicted_kwh": 11.435,
+          "lower_bound": 6.642,
+          "upper_bound": 16.706
+        },
+        {
+          "timestamp": "2026-02-12T03:00:00",
+          "predicted_kwh": 11.177,
+          "lower_bound": 6.011,
+          "upper_bound": 16.538
+        },
+        {
+          "timestamp": "2026-02-12T04:00:00",
+          "predicted_kwh": 11.025,
+          "lower_bound": 5.887,
+          "upper_bound": 16.406
+        },
+        {
+          "timestamp": "2026-02-12T05:00:00",
+          "predicted_kwh": 11.326,
+          "lower_bound": 6.069,
+          "upper_bound": 16.481
+        },
+        {
+          "timestamp": "2026-02-12T06:00:00",
+          "predicted_kwh": 11.84,
+          "lower_bound": 6.7,
+          "upper_bound": 17.015
+        },
+        {
+          "timestamp": "2026-02-12T07:00:00",
+          "predicted_kwh": 12.056,
+          "lower_bound": 6.435,
+          "upper_bound": 17.13
+        },
+        {
+          "timestamp": "2026-02-12T08:00:00",
+          "predicted_kwh": 11.802,
+          "lower_bound": 6.306,
+          "upper_bound": 16.918
+        },
+        {
+          "timestamp": "2026-02-12T09:00:00",
+          "predicted_kwh": 11.521,
+          "lower_bound": 6.419,
+          "upper_bound": 16.616
+        },
+        {
+          "timestamp": "2026-02-12T10:00:00",
+          "predicted_kwh": 11.9,
+          "lower_bound": 6.87,
+          "upper_bound": 17.275
+        },
+        {
+          "timestamp": "2026-02-12T11:00:00",
+          "predicted_kwh": 13.223,
+          "lower_bound": 7.59,
+          "upper_bound": 18.77
+        },
+        {
+          "timestamp": "2026-02-12T12:00:00",
+          "predicted_kwh": 15.078,
+          "lower_bound": 9.734,
+          "upper_bound": 20.493
+        },
+        {
+          "timestamp": "2026-02-12T13:00:00",
+          "predicted_kwh": 16.704,
+          "lower_bound": 11.494,
+          "upper_bound": 22.204
+        },
+        {
+          "timestamp": "2026-02-12T14:00:00",
+          "predicted_kwh": 17.62,
+          "lower_bound": 12.399,
+          "upper_bound": 22.865
+        },
+        {
+          "timestamp": "2026-02-12T15:00:00",
+          "predicted_kwh": 17.92,
+          "lower_bound": 12.741,
+          "upper_bound": 23.212
+        },
+        {
+          "timestamp": "2026-02-12T16:00:00",
+          "predicted_kwh": 17.965,
+          "lower_bound": 12.451,
+          "upper_bound": 23.068
+        },
+        {
+          "timestamp": "2026-02-12T17:00:00",
+          "predicted_kwh": 17.837,
+          "lower_bound": 12.766,
+          "upper_bound": 23.321
+        },
+        {
+          "timestamp": "2026-02-12T18:00:00",
+          "predicted_kwh": 17.168,
+          "lower_bound": 11.821,
+          "upper_bound": 22.312
+        },
+        {
+          "timestamp": "2026-02-12T19:00:00",
+          "predicted_kwh": 15.549,
+          "lower_bound": 10.121,
+          "upper_bound": 20.924
+        },
+        {
+          "timestamp": "2026-02-12T20:00:00",
+          "predicted_kwh": 13.129,
+          "lower_bound": 7.876,
+          "upper_bound": 18.244
+        },
+        {
+          "timestamp": "2026-02-12T21:00:00",
+          "predicted_kwh": 10.745,
+          "lower_bound": 5.446,
+          "upper_bound": 16.149
+        },
+        {
+          "timestamp": "2026-02-12T22:00:00",
+          "predicted_kwh": 9.39,
+          "lower_bound": 3.955,
+          "upper_bound": 14.67
+        },
+        {
+          "timestamp": "2026-02-12T23:00:00",
+          "predicted_kwh": 9.441,
+          "lower_bound": 3.73,
+          "upper_bound": 14.765
+        },
+        {
+          "timestamp": "2026-02-13T00:00:00",
+          "predicted_kwh": 10.382,
+          "lower_bound": 5.099,
+          "upper_bound": 15.699
+        },
+        {
+          "timestamp": "2026-02-13T01:00:00",
+          "predicted_kwh": 11.261,
+          "lower_bound": 5.968,
+          "upper_bound": 16.35
+        },
+        {
+          "timestamp": "2026-02-13T02:00:00",
+          "predicted_kwh": 11.49,
+          "lower_bound": 6.202,
+          "upper_bound": 16.886
+        },
+        {
+          "timestamp": "2026-02-13T03:00:00",
+          "predicted_kwh": 11.232,
+          "lower_bound": 5.987,
+          "upper_bound": 16.377
+        },
+        {
+          "timestamp": "2026-02-13T04:00:00",
+          "predicted_kwh": 11.077,
+          "lower_bound": 5.806,
+          "upper_bound": 16.033
+        },
+        {
+          "timestamp": "2026-02-13T05:00:00",
+          "predicted_kwh": 11.373,
+          "lower_bound": 5.736,
+          "upper_bound": 16.733
+        },
+        {
+          "timestamp": "2026-02-13T06:00:00",
+          "predicted_kwh": 11.878,
+          "lower_bound": 6.838,
+          "upper_bound": 17.704
+        },
+        {
+          "timestamp": "2026-02-13T07:00:00",
+          "predicted_kwh": 12.081,
+          "lower_bound": 6.681,
+          "upper_bound": 16.911
+        },
+        {
+          "timestamp": "2026-02-13T08:00:00",
+          "predicted_kwh": 11.809,
+          "lower_bound": 6.626,
+          "upper_bound": 17.485
+        },
+        {
+          "timestamp": "2026-02-13T09:00:00",
+          "predicted_kwh": 11.504,
+          "lower_bound": 6.218,
+          "upper_bound": 16.679
+        },
+        {
+          "timestamp": "2026-02-13T10:00:00",
+          "predicted_kwh": 11.854,
+          "lower_bound": 6.956,
+          "upper_bound": 17.473
+        },
+        {
+          "timestamp": "2026-02-13T11:00:00",
+          "predicted_kwh": 13.142,
+          "lower_bound": 7.915,
+          "upper_bound": 18.409
+        },
+        {
+          "timestamp": "2026-02-13T12:00:00",
+          "predicted_kwh": 14.956,
+          "lower_bound": 10.003,
+          "upper_bound": 20.044
+        },
+        {
+          "timestamp": "2026-02-13T13:00:00",
+          "predicted_kwh": 16.534,
+          "lower_bound": 11.353,
+          "upper_bound": 21.672
+        },
+        {
+          "timestamp": "2026-02-13T14:00:00",
+          "predicted_kwh": 17.395,
+          "lower_bound": 12.551,
+          "upper_bound": 22.892
+        },
+        {
+          "timestamp": "2026-02-13T15:00:00",
+          "predicted_kwh": 17.632,
+          "lower_bound": 12.496,
+          "upper_bound": 22.835
+        },
+        {
+          "timestamp": "2026-02-13T16:00:00",
+          "predicted_kwh": 17.607,
+          "lower_bound": 12.242,
+          "upper_bound": 22.966
+        },
+        {
+          "timestamp": "2026-02-13T17:00:00",
+          "predicted_kwh": 17.403,
+          "lower_bound": 12.158,
+          "upper_bound": 22.663
+        },
+        {
+          "timestamp": "2026-02-13T18:00:00",
+          "predicted_kwh": 16.65,
+          "lower_bound": 11.421,
+          "upper_bound": 21.876
+        },
+        {
+          "timestamp": "2026-02-13T19:00:00",
+          "predicted_kwh": 14.94,
+          "lower_bound": 9.704,
+          "upper_bound": 19.861
+        },
+        {
+          "timestamp": "2026-02-13T20:00:00",
+          "predicted_kwh": 12.421,
+          "lower_bound": 7.3,
+          "upper_bound": 17.141
+        },
+        {
+          "timestamp": "2026-02-13T21:00:00",
+          "predicted_kwh": 9.932,
+          "lower_bound": 4.436,
+          "upper_bound": 15.09
+        },
+        {
+          "timestamp": "2026-02-13T22:00:00",
+          "predicted_kwh": 8.466,
+          "lower_bound": 3.493,
+          "upper_bound": 13.753
+        },
+        {
+          "timestamp": "2026-02-13T23:00:00",
+          "predicted_kwh": 8.402,
+          "lower_bound": 3.497,
+          "upper_bound": 13.558
+        },
+        {
+          "timestamp": "2026-02-14T00:00:00",
+          "predicted_kwh": 9.221,
+          "lower_bound": 3.404,
+          "upper_bound": 14.22
+        },
+        {
+          "timestamp": "2026-02-14T01:00:00",
+          "predicted_kwh": 9.975,
+          "lower_bound": 4.261,
+          "upper_bound": 14.922
+        },
+        {
+          "timestamp": "2026-02-14T02:00:00",
+          "predicted_kwh": 10.074,
+          "lower_bound": 4.718,
+          "upper_bound": 15.178
+        },
+        {
+          "timestamp": "2026-02-14T03:00:00",
+          "predicted_kwh": 9.684,
+          "lower_bound": 4.42,
+          "upper_bound": 14.818
+        },
+        {
+          "timestamp": "2026-02-14T04:00:00",
+          "predicted_kwh": 9.397,
+          "lower_bound": 4.268,
+          "upper_bound": 14.695
+        },
+        {
+          "timestamp": "2026-02-14T05:00:00",
+          "predicted_kwh": 9.559,
+          "lower_bound": 4.374,
+          "upper_bound": 14.918
+        },
+        {
+          "timestamp": "2026-02-14T06:00:00",
+          "predicted_kwh": 9.932,
+          "lower_bound": 4.694,
+          "upper_bound": 15.205
+        },
+        {
+          "timestamp": "2026-02-14T07:00:00",
+          "predicted_kwh": 10.003,
+          "lower_bound": 4.919,
+          "upper_bound": 15.386
+        },
+        {
+          "timestamp": "2026-02-14T08:00:00",
+          "predicted_kwh": 9.603,
+          "lower_bound": 4.379,
+          "upper_bound": 14.63
+        },
+        {
+          "timestamp": "2026-02-14T09:00:00",
+          "predicted_kwh": 9.174,
+          "lower_bound": 4.024,
+          "upper_bound": 14.27
+        },
+        {
+          "timestamp": "2026-02-14T10:00:00",
+          "predicted_kwh": 9.406,
+          "lower_bound": 3.926,
+          "upper_bound": 14.769
+        },
+        {
+          "timestamp": "2026-02-14T11:00:00",
+          "predicted_kwh": 10.582,
+          "lower_bound": 5.148,
+          "upper_bound": 15.874
+        },
+        {
+          "timestamp": "2026-02-14T12:00:00",
+          "predicted_kwh": 12.293,
+          "lower_bound": 6.709,
+          "upper_bound": 17.284
+        },
+        {
+          "timestamp": "2026-02-14T13:00:00",
+          "predicted_kwh": 13.776,
+          "lower_bound": 8.572,
+          "upper_bound": 18.837
+        },
+        {
+          "timestamp": "2026-02-14T14:00:00",
+          "predicted_kwh": 14.553,
+          "lower_bound": 8.933,
+          "upper_bound": 19.607
+        },
+        {
+          "timestamp": "2026-02-14T15:00:00",
+          "predicted_kwh": 14.718,
+          "lower_bound": 9.583,
+          "upper_bound": 19.845
+        },
+        {
+          "timestamp": "2026-02-14T16:00:00",
+          "predicted_kwh": 14.634,
+          "lower_bound": 9.111,
+          "upper_bound": 19.998
+        },
+        {
+          "timestamp": "2026-02-14T17:00:00",
+          "predicted_kwh": 14.383,
+          "lower_bound": 9.338,
+          "upper_bound": 19.593
+        },
+        {
+          "timestamp": "2026-02-14T18:00:00",
+          "predicted_kwh": 13.599,
+          "lower_bound": 8.474,
+          "upper_bound": 19.019
+        },
+        {
+          "timestamp": "2026-02-14T19:00:00",
+          "predicted_kwh": 11.873,
+          "lower_bound": 6.574,
+          "upper_bound": 17.356
+        },
+        {
+          "timestamp": "2026-02-14T20:00:00",
+          "predicted_kwh": 9.355,
+          "lower_bound": 4.298,
+          "upper_bound": 14.575
+        },
+        {
+          "timestamp": "2026-02-14T21:00:00",
+          "predicted_kwh": 6.884,
+          "lower_bound": 1.828,
+          "upper_bound": 12.173
+        },
+        {
+          "timestamp": "2026-02-14T22:00:00",
+          "predicted_kwh": 5.452,
+          "lower_bound": 0.197,
+          "upper_bound": 11.016
+        },
+        {
+          "timestamp": "2026-02-14T23:00:00",
+          "predicted_kwh": 5.44,
+          "lower_bound": 0.386,
+          "upper_bound": 10.686
+        },
+        {
+          "timestamp": "2026-02-15T00:00:00",
+          "predicted_kwh": 6.329,
+          "lower_bound": 1.188,
+          "upper_bound": 11.497
+        },
+        {
+          "timestamp": "2026-02-15T01:00:00",
+          "predicted_kwh": 7.172,
+          "lower_bound": 1.959,
+          "upper_bound": 12.81
+        },
+        {
+          "timestamp": "2026-02-15T02:00:00",
+          "predicted_kwh": 7.378,
+          "lower_bound": 1.763,
+          "upper_bound": 12.593
+        },
+        {
+          "timestamp": "2026-02-15T03:00:00",
+          "predicted_kwh": 7.112,
+          "lower_bound": 1.818,
+          "upper_bound": 12.34
+        },
+        {
+          "timestamp": "2026-02-15T04:00:00",
+          "predicted_kwh": 6.966,
+          "lower_bound": 1.772,
+          "upper_bound": 12.35
+        },
+        {
+          "timestamp": "2026-02-15T05:00:00",
+          "predicted_kwh": 7.286,
+          "lower_bound": 2.015,
+          "upper_bound": 12.339
+        },
+        {
+          "timestamp": "2026-02-15T06:00:00",
+          "predicted_kwh": 7.833,
+          "lower_bound": 2.697,
+          "upper_bound": 13.574
+        },
+        {
+          "timestamp": "2026-02-15T07:00:00",
+          "predicted_kwh": 8.093,
+          "lower_bound": 2.659,
+          "upper_bound": 13.64
+        },
+        {
+          "timestamp": "2026-02-15T08:00:00",
+          "predicted_kwh": 7.897,
+          "lower_bound": 2.753,
+          "upper_bound": 13.371
+        },
+        {
+          "timestamp": "2026-02-15T09:00:00",
+          "predicted_kwh": 7.685,
+          "lower_bound": 2.329,
+          "upper_bound": 13.024
+        },
+        {
+          "timestamp": "2026-02-15T10:00:00",
+          "predicted_kwh": 8.146,
+          "lower_bound": 2.957,
+          "upper_bound": 13.447
+        },
+        {
+          "timestamp": "2026-02-15T11:00:00",
+          "predicted_kwh": 9.562,
+          "lower_bound": 4.138,
+          "upper_bound": 15.194
+        },
+        {
+          "timestamp": "2026-02-15T12:00:00",
+          "predicted_kwh": 11.521,
+          "lower_bound": 6.491,
+          "upper_bound": 16.728
+        },
+        {
+          "timestamp": "2026-02-15T13:00:00",
+          "predicted_kwh": 13.261,
+          "lower_bound": 7.943,
+          "upper_bound": 18.279
+        },
+        {
+          "timestamp": "2026-02-15T14:00:00",
+          "predicted_kwh": 14.3,
+          "lower_bound": 9.116,
+          "upper_bound": 19.325
+        },
+        {
+          "timestamp": "2026-02-15T15:00:00",
+          "predicted_kwh": 14.732,
+          "lower_bound": 9.411,
+          "upper_bound": 19.816
+        },
+        {
+          "timestamp": "2026-02-15T16:00:00",
+          "predicted_kwh": 14.917,
+          "lower_bound": 9.402,
+          "upper_bound": 20.31
+        },
+        {
+          "timestamp": "2026-02-15T17:00:00",
+          "predicted_kwh": 14.937,
+          "lower_bound": 9.951,
+          "upper_bound": 20.52
+        },
+        {
+          "timestamp": "2026-02-15T18:00:00",
+          "predicted_kwh": 14.422,
+          "lower_bound": 8.847,
+          "upper_bound": 19.668
+        },
+        {
+          "timestamp": "2026-02-15T19:00:00",
+          "predicted_kwh": 12.963,
+          "lower_bound": 7.914,
+          "upper_bound": 17.96
+        },
+        {
+          "timestamp": "2026-02-15T20:00:00",
+          "predicted_kwh": 10.707,
+          "lower_bound": 5.361,
+          "upper_bound": 16.002
+        },
+        {
+          "timestamp": "2026-02-15T21:00:00",
+          "predicted_kwh": 8.492,
+          "lower_bound": 3.031,
+          "upper_bound": 13.837
+        },
+        {
+          "timestamp": "2026-02-15T22:00:00",
+          "predicted_kwh": 7.309,
+          "lower_bound": 1.6,
+          "upper_bound": 12.128
+        },
+        {
+          "timestamp": "2026-02-15T23:00:00",
+          "predicted_kwh": 7.535,
+          "lower_bound": 2.308,
+          "upper_bound": 12.357
+        },
+        {
+          "timestamp": "2026-02-16T00:00:00",
+          "predicted_kwh": 8.652,
+          "lower_bound": 3.567,
+          "upper_bound": 14.075
+        },
+        {
+          "timestamp": "2026-02-16T01:00:00",
+          "predicted_kwh": 9.709,
+          "lower_bound": 4.661,
+          "upper_bound": 15.256
+        },
+        {
+          "timestamp": "2026-02-16T02:00:00",
+          "predicted_kwh": 10.116,
+          "lower_bound": 5.096,
+          "upper_bound": 15.268
+        },
+        {
+          "timestamp": "2026-02-16T03:00:00",
+          "predicted_kwh": 10.036,
+          "lower_bound": 4.408,
+          "upper_bound": 15.48
+        },
+        {
+          "timestamp": "2026-02-16T04:00:00",
+          "predicted_kwh": 10.06,
+          "lower_bound": 4.72,
+          "upper_bound": 15.423
+        },
+        {
+          "timestamp": "2026-02-16T05:00:00",
+          "predicted_kwh": 10.532,
+          "lower_bound": 5.579,
+          "upper_bound": 15.733
+        },
+        {
+          "timestamp": "2026-02-16T06:00:00",
+          "predicted_kwh": 11.213,
+          "lower_bound": 6.127,
+          "upper_bound": 16.124
+        },
+        {
+          "timestamp": "2026-02-16T07:00:00",
+          "predicted_kwh": 11.589,
+          "lower_bound": 6.426,
+          "upper_bound": 16.88
+        },
+        {
+          "timestamp": "2026-02-16T08:00:00",
+          "predicted_kwh": 11.488,
+          "lower_bound": 6.311,
+          "upper_bound": 16.761
+        },
+        {
+          "timestamp": "2026-02-16T09:00:00",
+          "predicted_kwh": 11.352,
+          "lower_bound": 6.221,
+          "upper_bound": 16.632
+        },
+        {
+          "timestamp": "2026-02-16T10:00:00",
+          "predicted_kwh": 11.868,
+          "lower_bound": 6.281,
+          "upper_bound": 16.768
+        },
+        {
+          "timestamp": "2026-02-16T11:00:00",
+          "predicted_kwh": 13.32,
+          "lower_bound": 7.935,
+          "upper_bound": 18.475
+        },
+        {
+          "timestamp": "2026-02-16T12:00:00",
+          "predicted_kwh": 15.295,
+          "lower_bound": 10.061,
+          "upper_bound": 20.432
+        },
+        {
+          "timestamp": "2026-02-16T13:00:00",
+          "predicted_kwh": 17.031,
+          "lower_bound": 11.789,
+          "upper_bound": 22.143
+        },
+        {
+          "timestamp": "2026-02-16T14:00:00",
+          "predicted_kwh": 18.048,
+          "lower_bound": 13.127,
+          "upper_bound": 23.362
+        },
+        {
+          "timestamp": "2026-02-16T15:00:00",
+          "predicted_kwh": 18.438,
+          "lower_bound": 13.044,
+          "upper_bound": 23.382
+        },
+        {
+          "timestamp": "2026-02-16T16:00:00",
+          "predicted_kwh": 18.563,
+          "lower_bound": 13.473,
+          "upper_bound": 23.836
+        },
+        {
+          "timestamp": "2026-02-16T17:00:00",
+          "predicted_kwh": 18.506,
+          "lower_bound": 13.069,
+          "upper_bound": 23.802
+        },
+        {
+          "timestamp": "2026-02-16T18:00:00",
+          "predicted_kwh": 17.898,
+          "lower_bound": 12.709,
+          "upper_bound": 23.067
+        },
+        {
+          "timestamp": "2026-02-16T19:00:00",
+          "predicted_kwh": 16.33,
+          "lower_bound": 10.861,
+          "upper_bound": 21.398
+        },
+        {
+          "timestamp": "2026-02-16T20:00:00",
+          "predicted_kwh": 13.951,
+          "lower_bound": 8.622,
+          "upper_bound": 18.877
+        },
+        {
+          "timestamp": "2026-02-16T21:00:00",
+          "predicted_kwh": 11.601,
+          "lower_bound": 6.082,
+          "upper_bound": 16.753
+        },
+        {
+          "timestamp": "2026-02-16T22:00:00",
+          "predicted_kwh": 10.271,
+          "lower_bound": 4.9,
+          "upper_bound": 15.526
+        },
+        {
+          "timestamp": "2026-02-16T23:00:00",
+          "predicted_kwh": 10.341,
+          "lower_bound": 5.32,
+          "upper_bound": 15.599
+        },
+        {
+          "timestamp": "2026-02-17T00:00:00",
+          "predicted_kwh": 11.293,
+          "lower_bound": 5.394,
+          "upper_bound": 16.518
+        },
+        {
+          "timestamp": "2026-02-17T01:00:00",
+          "predicted_kwh": 12.178,
+          "lower_bound": 6.802,
+          "upper_bound": 17.818
+        },
+        {
+          "timestamp": "2026-02-17T02:00:00",
+          "predicted_kwh": 12.407,
+          "lower_bound": 6.723,
+          "upper_bound": 17.51
+        },
+        {
+          "timestamp": "2026-02-17T03:00:00",
+          "predicted_kwh": 12.145,
+          "lower_bound": 6.589,
+          "upper_bound": 17.366
+        }
+      ],
+      "summary": {
+        "site_id": 23271,
+        "horizon_days": 7,
+        "lookback_days": 90,
+        "training_rows": 2137,
+        "forecast_hours": 168,
+        "total_predicted_kwh": 2084.72,
+        "total_last_7d_actual_kwh": 2079.82,
+        "daily_forecast": [
+          {
+            "date": "2026-02-10",
+            "predicted_kwh": 327.75,
+            "peak_hour_kwh": 18.364
+          },
+          {
+            "date": "2026-02-11",
+            "predicted_kwh": 317.95,
+            "peak_hour_kwh": 17.976
+          },
+          {
+            "date": "2026-02-12",
+            "predicted_kwh": 317.6,
+            "peak_hour_kwh": 17.965
+          },
+          {
+            "date": "2026-02-13",
+            "predicted_kwh": 306.01,
+            "peak_hour_kwh": 17.632
+          },
+          {
+            "date": "2026-02-14",
+            "predicted_kwh": 242.61,
+            "peak_hour_kwh": 14.718
+          },
+          {
+            "date": "2026-02-15",
+            "predicted_kwh": 247.08,
+            "peak_hour_kwh": 14.937
+          },
+          {
+            "date": "2026-02-16",
+            "predicted_kwh": 325.72,
+            "peak_hour_kwh": 18.563
+          }
+        ],
+        "generated_at": "2026-02-11T01:47:21.127990",
+        "trend_direction": "stable",
+        "trend_change_pct": -0.6
+      },
+      "model_info": {
+        "changepoints": 25,
+        "interval_width": 0.8,
+        "seasonalities": [
+          "weekly",
+          "daily"
+        ]
+      }
+    },
+    "costOptimization": {
+      "site_id": 23271,
+      "period_days": 30,
+      "tou_analysis": {
+        "site_id": 23271,
+        "period_days": 30,
+        "total_kwh": 8476.84,
+        "flat_rate": 0.12,
+        "flat_total_cost": 1017.22,
+        "tou_schedule_name": "Standard TOU",
+        "tou_total_cost": 915.14,
+        "tou_vs_flat_savings": 102.08,
+        "tou_vs_flat_pct": 10.0,
+        "period_breakdown": {
+          "off_peak": {
+            "kwh": 4011.97,
+            "cost": 240.72,
+            "hours": 403,
+            "pct_of_total_kwh": 47.3,
+            "rate": 0.06
+          },
+          "mid_peak": {
+            "kwh": 2185.49,
+            "cost": 218.55,
+            "hours": 168,
+            "pct_of_total_kwh": 25.8,
+            "rate": 0.1
+          },
+          "on_peak": {
+            "kwh": 2279.39,
+            "cost": 455.88,
+            "hours": 126,
+            "pct_of_total_kwh": 26.9,
+            "rate": 0.2
+          }
+        },
+        "load_shift_opportunity": {
+          "on_peak_kwh": 2279.39,
+          "potential_savings_per_kwh": 0.14,
+          "max_monthly_savings": 319.11,
+          "description": "Shifting 2279.0 kWh from on-peak to off-peak could save up to $319.11/period"
+        },
+        "daily_detail": [
+          {
+            "date": "2026-01-12",
+            "kwh": 331.84,
+            "flat_cost": 39.82,
+            "tou_cost": 45.6
+          },
+          {
+            "date": "2026-01-13",
+            "kwh": 353.68,
+            "flat_cost": 42.44,
+            "tou_cost": 44.22
+          },
+          {
+            "date": "2026-01-14",
+            "kwh": 333.47,
+            "flat_cost": 40.02,
+            "tou_cost": 42.31
+          },
+          {
+            "date": "2026-01-15",
+            "kwh": 335.8,
+            "flat_cost": 40.3,
+            "tou_cost": 42.61
+          },
+          {
+            "date": "2026-01-16",
+            "kwh": 352.93,
+            "flat_cost": 42.35,
+            "tou_cost": 43.55
+          },
+          {
+            "date": "2026-01-17",
+            "kwh": 238.84,
+            "flat_cost": 28.66,
+            "tou_cost": 14.33
+          },
+          {
+            "date": "2026-01-18",
+            "kwh": 194.78,
+            "flat_cost": 23.37,
+            "tou_cost": 11.69
+          },
+          {
+            "date": "2026-01-19",
+            "kwh": 276.95,
+            "flat_cost": 33.23,
+            "tou_cost": 32.25
+          },
+          {
+            "date": "2026-01-20",
+            "kwh": 376.73,
+            "flat_cost": 45.21,
+            "tou_cost": 48.94
+          },
+          {
+            "date": "2026-01-21",
+            "kwh": 329.05,
+            "flat_cost": 39.49,
+            "tou_cost": 40.32
+          },
+          {
+            "date": "2026-01-22",
+            "kwh": 308.03,
+            "flat_cost": 36.96,
+            "tou_cost": 38.85
+          },
+          {
+            "date": "2026-01-23",
+            "kwh": 283.86,
+            "flat_cost": 34.06,
+            "tou_cost": 37.0
+          },
+          {
+            "date": "2026-01-24",
+            "kwh": 220.54,
+            "flat_cost": 26.47,
+            "tou_cost": 13.23
+          },
+          {
+            "date": "2026-01-25",
+            "kwh": 269.05,
+            "flat_cost": 32.29,
+            "tou_cost": 16.14
+          },
+          {
+            "date": "2026-01-26",
+            "kwh": 252.76,
+            "flat_cost": 30.33,
+            "tou_cost": 28.69
+          },
+          {
+            "date": "2026-01-27",
+            "kwh": 280.15,
+            "flat_cost": 33.62,
+            "tou_cost": 31.49
+          },
+          {
+            "date": "2026-01-28",
+            "kwh": 267.81,
+            "flat_cost": 32.14,
+            "tou_cost": 30.01
+          },
+          {
+            "date": "2026-01-29",
+            "kwh": 276.1,
+            "flat_cost": 33.13,
+            "tou_cost": 30.99
+          },
+          {
+            "date": "2026-01-30",
+            "kwh": 265.6,
+            "flat_cost": 31.87,
+            "tou_cost": 29.86
+          },
+          {
+            "date": "2026-01-31",
+            "kwh": 258.24,
+            "flat_cost": 30.99,
+            "tou_cost": 15.49
+          },
+          {
+            "date": "2026-02-01",
+            "kwh": 261.93,
+            "flat_cost": 31.43,
+            "tou_cost": 15.72
+          },
+          {
+            "date": "2026-02-02",
+            "kwh": 282.46,
+            "flat_cost": 33.9,
+            "tou_cost": 31.89
+          },
+          {
+            "date": "2026-02-03",
+            "kwh": 262.7,
+            "flat_cost": 31.52,
+            "tou_cost": 29.82
+          },
+          {
+            "date": "2026-02-04",
+            "kwh": 341.81,
+            "flat_cost": 41.02,
+            "tou_cost": 43.18
+          },
+          {
+            "date": "2026-02-05",
+            "kwh": 263.38,
+            "flat_cost": 31.61,
+            "tou_cost": 30.35
+          },
+          {
+            "date": "2026-02-06",
+            "kwh": 362.14,
+            "flat_cost": 43.46,
+            "tou_cost": 45.82
+          },
+          {
+            "date": "2026-02-07",
+            "kwh": 223.9,
+            "flat_cost": 26.87,
+            "tou_cost": 13.43
+          },
+          {
+            "date": "2026-02-08",
+            "kwh": 253.76,
+            "flat_cost": 30.45,
+            "tou_cost": 15.23
+          },
+          {
+            "date": "2026-02-09",
+            "kwh": 375.58,
+            "flat_cost": 45.07,
+            "tou_cost": 49.56
+          },
+          {
+            "date": "2026-02-10",
+            "kwh": 42.97,
+            "flat_cost": 5.16,
+            "tou_cost": 2.58
+          }
+        ],
+        "generated_at": "2026-02-11T01:47:21.478127"
+      },
+      "demand_analysis": {
+        "site_id": 23271,
+        "period_days": 30,
+        "billing_peak_kw": 31.8,
+        "peak_timestamp": "2026-02-09T17:00:00+00:00",
+        "demand_rate_per_kw": 12.0,
+        "monthly_demand_charge": 381.64,
+        "annual_demand_charge": 4579.68,
+        "top_peak_events": [
+          {
+            "timestamp": "2026-02-09T17:00:00+00:00",
+            "demand_kw": 31.8,
+            "hour_of_day": 17,
+            "day_of_week": "Monday"
+          },
+          {
+            "timestamp": "2026-01-20T17:00:00+00:00",
+            "demand_kw": 31.47,
+            "hour_of_day": 17,
+            "day_of_week": "Tuesday"
+          },
+          {
+            "timestamp": "2026-02-09T14:00:00+00:00",
+            "demand_kw": 31.19,
+            "hour_of_day": 14,
+            "day_of_week": "Monday"
+          },
+          {
+            "timestamp": "2026-02-09T16:00:00+00:00",
+            "demand_kw": 31.1,
+            "hour_of_day": 16,
+            "day_of_week": "Monday"
+          },
+          {
+            "timestamp": "2026-01-12T14:00:00+00:00",
+            "demand_kw": 30.94,
+            "hour_of_day": 14,
+            "day_of_week": "Monday"
+          },
+          {
+            "timestamp": "2026-02-09T18:00:00+00:00",
+            "demand_kw": 30.25,
+            "hour_of_day": 18,
+            "day_of_week": "Monday"
+          },
+          {
+            "timestamp": "2026-02-04T15:00:00+00:00",
+            "demand_kw": 29.85,
+            "hour_of_day": 15,
+            "day_of_week": "Wednesday"
+          },
+          {
+            "timestamp": "2026-02-06T14:00:00+00:00",
+            "demand_kw": 29.68,
+            "hour_of_day": 14,
+            "day_of_week": "Friday"
+          },
+          {
+            "timestamp": "2026-01-12T17:00:00+00:00",
+            "demand_kw": 29.52,
+            "hour_of_day": 17,
+            "day_of_week": "Monday"
+          },
+          {
+            "timestamp": "2026-01-15T17:00:00+00:00",
+            "demand_kw": 28.88,
+            "hour_of_day": 17,
+            "day_of_week": "Thursday"
+          }
+        ],
+        "shaving_scenarios": [
+          {
+            "reduction_pct": 5,
+            "reduced_peak_kw": 30.21,
+            "monthly_charge": 362.56,
+            "monthly_savings": 19.08,
+            "annual_savings": 228.96
+          },
+          {
+            "reduction_pct": 10,
+            "reduced_peak_kw": 28.62,
+            "monthly_charge": 343.47,
+            "monthly_savings": 38.17,
+            "annual_savings": 458.04
+          },
+          {
+            "reduction_pct": 15,
+            "reduced_peak_kw": 27.03,
+            "monthly_charge": 324.39,
+            "monthly_savings": 57.25,
+            "annual_savings": 687.0
+          },
+          {
+            "reduction_pct": 20,
+            "reduced_peak_kw": 25.44,
+            "monthly_charge": 305.31,
+            "monthly_savings": 76.33,
+            "annual_savings": 915.96
+          }
+        ],
+        "load_profile": [
+          {
+            "hour": 0,
+            "avg_kw": 9.39,
+            "max_kw": 12.78,
+            "avg_kwh": 9.387
+          },
+          {
+            "hour": 1,
+            "avg_kw": 10.23,
+            "max_kw": 12.85,
+            "avg_kwh": 10.231
+          },
+          {
+            "hour": 2,
+            "avg_kw": 11.28,
+            "max_kw": 13.21,
+            "avg_kwh": 11.274
+          },
+          {
+            "hour": 3,
+            "avg_kw": 11.18,
+            "max_kw": 13.07,
+            "avg_kwh": 11.178
+          },
+          {
+            "hour": 4,
+            "avg_kw": 11.15,
+            "max_kw": 13.01,
+            "avg_kwh": 11.143
+          },
+          {
+            "hour": 5,
+            "avg_kw": 11.3,
+            "max_kw": 13.02,
+            "avg_kwh": 11.291
+          },
+          {
+            "hour": 6,
+            "avg_kw": 11.38,
+            "max_kw": 13.36,
+            "avg_kwh": 11.38
+          },
+          {
+            "hour": 7,
+            "avg_kw": 11.56,
+            "max_kw": 12.99,
+            "avg_kwh": 11.55
+          },
+          {
+            "hour": 8,
+            "avg_kw": 12.07,
+            "max_kw": 13.31,
+            "avg_kwh": 12.065
+          },
+          {
+            "hour": 9,
+            "avg_kw": 11.68,
+            "max_kw": 12.89,
+            "avg_kwh": 11.671
+          },
+          {
+            "hour": 10,
+            "avg_kw": 11.39,
+            "max_kw": 13.1,
+            "avg_kwh": 11.388
+          },
+          {
+            "hour": 11,
+            "avg_kw": 13.46,
+            "max_kw": 16.19,
+            "avg_kwh": 13.456
+          },
+          {
+            "hour": 12,
+            "avg_kw": 14.15,
+            "max_kw": 20.71,
+            "avg_kwh": 14.152
+          },
+          {
+            "hour": 13,
+            "avg_kw": 15.61,
+            "max_kw": 27.51,
+            "avg_kwh": 15.607
+          },
+          {
+            "hour": 14,
+            "avg_kw": 16.45,
+            "max_kw": 31.19,
+            "avg_kwh": 16.444
+          },
+          {
+            "hour": 15,
+            "avg_kw": 15.42,
+            "max_kw": 29.85,
+            "avg_kwh": 15.422
+          },
+          {
+            "hour": 16,
+            "avg_kw": 15.33,
+            "max_kw": 31.1,
+            "avg_kwh": 15.322
+          },
+          {
+            "hour": 17,
+            "avg_kw": 16.9,
+            "max_kw": 31.8,
+            "avg_kwh": 16.896
+          },
+          {
+            "hour": 18,
+            "avg_kw": 15.67,
+            "max_kw": 30.25,
+            "avg_kwh": 15.668
+          },
+          {
+            "hour": 19,
+            "avg_kw": 12.94,
+            "max_kw": 23.7,
+            "avg_kwh": 12.938
+          },
+          {
+            "hour": 20,
+            "avg_kw": 9.64,
+            "max_kw": 13.08,
+            "avg_kwh": 9.63
+          },
+          {
+            "hour": 21,
+            "avg_kw": 8.89,
+            "max_kw": 12.55,
+            "avg_kwh": 8.883
+          },
+          {
+            "hour": 22,
+            "avg_kw": 6.99,
+            "max_kw": 11.43,
+            "avg_kwh": 6.98
+          },
+          {
+            "hour": 23,
+            "avg_kw": 7.85,
+            "max_kw": 11.87,
+            "avg_kwh": 7.845
+          }
+        ],
+        "weekday_peak_kw": 31.8,
+        "weekend_peak_kw": 13.21,
+        "peak_concentration_hours": [
+          17,
+          18,
+          14
+        ],
+        "recommendations": [
+          {
+            "priority": "high",
+            "category": "load_shifting",
+            "title": "Shift non-critical weekday loads",
+            "detail": "Weekday peak (32 kW) is 2.4x higher than weekend (13 kW). Consider shifting batch processes, HVAC pre-cooling, or EV charging to off-peak hours."
+          },
+          {
+            "priority": "high",
+            "category": "peak_shaving",
+            "title": "Target peak concentration hours",
+            "detail": "Demand peaks concentrate around 14:00, 17:00, 18:00. Stagger equipment startup or use demand-limiting controls during these hours to reduce the billing peak."
+          }
+        ],
+        "generated_at": "2026-02-11T01:47:21.557464"
+      },
+      "combined_summary": {
+        "total_energy_kwh": 8476.84,
+        "current_flat_cost": 1017.22,
+        "tou_optimized_cost": 915.14,
+        "demand_charge": 381.64,
+        "estimated_monthly_savings_potential": 140.25,
+        "estimated_annual_savings_potential": 1683.0
+      },
+      "generated_at": "2026-02-11T01:47:21.557648"
+    }
+  },
+  "charts": {
+    "afterHoursRanking": [],
+    "anomalyTimeline": [],
+    "spikeEvents": []
+  },
+  "dataQuality": {
+    "channelsAnalyzed": 8,
+    "avgCompleteness": 24.441964285714285
+  }
+}

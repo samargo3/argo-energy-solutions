@@ -30,13 +30,13 @@ import psycopg2
 from psycopg2.extras import execute_batch
 from dotenv import load_dotenv
 
-from lib.logging_config import configure_logging, get_logger
-from lib.sentry_client import init_sentry, capture_exception
-
 _PKG_ROOT = Path(__file__).resolve().parent.parent
 _PROJECT_ROOT = _PKG_ROOT.parent.parent
 if str(_PKG_ROOT) not in sys.path:
     sys.path.insert(0, str(_PKG_ROOT))
+
+from lib.logging_config import configure_logging, get_logger
+from lib.sentry_client import init_sentry, capture_exception
 # override=False: .env fills in missing vars but won't clobber env vars
 # already set by the OS / GitHub Actions secrets.
 load_dotenv(_PROJECT_ROOT / '.env', override=False)

@@ -54,7 +54,10 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install requests python-dotenv psycopg2-binary
+          pip install -r backend/python_scripts/requirements.txt
+
+      - name: Install backend package
+        run: pip install -e backend/python_scripts/
 
       - name: Run chunked backfill
         run: |

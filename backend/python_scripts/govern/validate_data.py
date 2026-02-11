@@ -15,16 +15,17 @@ import sys
 import psycopg2
 from datetime import datetime, timedelta
 from typing import Dict, List, Tuple
-from dotenv import load_dotenv
-
 from pathlib import Path
-
-from lib.logging_config import configure_logging, get_logger
-from lib.sentry_client import init_sentry, capture_exception
+from dotenv import load_dotenv
 
 _PKG_ROOT = Path(__file__).resolve().parent.parent
 _PROJECT_ROOT = _PKG_ROOT.parent.parent
+if str(_PKG_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PKG_ROOT))
 load_dotenv(_PROJECT_ROOT / '.env')
+
+from lib.logging_config import configure_logging, get_logger
+from lib.sentry_client import init_sentry, capture_exception
 
 configure_logging()
 logger = get_logger(__name__)
