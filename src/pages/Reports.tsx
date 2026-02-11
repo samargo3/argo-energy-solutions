@@ -25,17 +25,18 @@ export default function Reports() {
           </div>
 
           <div className="report-card">
-            <h2>Coming Soon</h2>
-            <p>Additional report types will be available here</p>
+            <h2>Weekly Analytics Brief</h2>
+            <p>Comprehensive weekly analysis with forecasting, cost optimization, and sensor health</p>
             <ul className="report-features">
-              <li>Monthly energy summaries</li>
-              <li>Cost analysis reports</li>
-              <li>Comparative analysis</li>
-              <li>PDF export functionality</li>
+              <li>&#10003; 24-hour load profile</li>
+              <li>&#10003; 7-day energy forecast</li>
+              <li>&#10003; Time-of-Use cost analysis</li>
+              <li>&#10003; Demand shaving scenarios</li>
+              <li>&#10003; Sensor health monitoring</li>
             </ul>
-            <button className="btn btn-secondary" disabled>
-              Coming Soon
-            </button>
+            <Link to="/reports/weekly" className="btn btn-primary">
+              View Weekly Report
+            </Link>
           </div>
         </div>
       </div>

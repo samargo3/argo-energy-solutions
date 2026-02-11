@@ -7,6 +7,7 @@ import Customers from './pages/Customers'
 import CustomerPortal from './pages/CustomerPortal'
 import Reports from './pages/Reports'
 import WilsonCenterReport from './pages/WilsonCenterReport'
+import WeeklyReport from './pages/WeeklyReport'
 import ApiTest from './pages/ApiTest'
 import EnergyHistory from './pages/EnergyHistory'
 import LoginPage from './pages/LoginPage'
@@ -28,6 +29,7 @@ function AppRoutes() {
         <Route path="customers/:id" element={<CustomerPortal />} />
         <Route path="reports" element={<Reports />} />
         <Route path="reports/wilson-center" element={<WilsonCenterReport />} />
+        <Route path="reports/weekly" element={<WeeklyReport />} />
         <Route path="api-test" element={<ApiTest />} />
         <Route path="energy-history" element={<EnergyHistory />} />
       </Route>
