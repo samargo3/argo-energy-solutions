@@ -83,11 +83,14 @@ def run_migration():
         statements = [s.strip() for s in MIGRATION_SQL.split(';') if s.strip()]
 
         for i, statement in enumerate(statements, 1):
+            printed = False
             if 'ADD COLUMN' in statement:
                 col_name = statement.split('IF NOT EXISTS')[-1].strip().split()[0]
                 print(f"   [{i}/{len(statements)}] Adding {col_name}...", end=' ')
+                printed = True
             cur.execute(statement)
-            print("done")
+            if printed:
+                print("done")
 
         # Count after
         cur.execute("""

@@ -848,7 +848,6 @@ def ingest_data(
 
             total_readings = 0
             total_errors = 0
-            audit_records: List[tuple] = []  # (org_id, ch_id, date_str, fetched, inserted, rejected, status, error_msg)
             loop_start_time = time.time()
             current = start_date
 
@@ -870,11 +869,6 @@ def ingest_data(
                         )
                         total_readings += inserted
 
-                        audit_records.append((
-                            site_id, ch['id'], date_str,
-                            fetched, inserted, rejected, 'success', None,
-                        ))
-
                         # Progress: show fetched vs inserted to spot dedup
                         print(f"   {date_str}  ch:{ch['id']} ({ch['name']})  →  fetched={fetched}, new={inserted}", flush=True)
 
@@ -883,36 +877,9 @@ def ingest_data(
 
                     except Exception as e:
                         total_errors += 1
-                        audit_records.append((
-                            site_id, ch['id'], date_str,
-                            fetched, 0, 0, 'failure', str(e),
-                        ))
                         print(f"   {date_str}  ch:{ch['id']} ({ch['name']})  ❌  {e}")
 
                 current += timedelta(days=1)
-
-            # ── Persistent audit: ingestion_logs ─────────────────────────
-            try:
-                with db.conn.cursor() as cur:
-                    db._ensure_ingestion_logs_table(cur)
-                    for (org_id, ch_id, d_str, r_fetched, r_inserted, r_rejected, r_status, r_err) in audit_records:
-                        st = datetime.strptime(d_str, '%Y-%m-%d').replace(tzinfo=timezone.utc)
-                        et = st + timedelta(days=1)
-                        cur.execute("""
-                            INSERT INTO ingestion_logs (
-                                organization_id, channel_id, start_time, end_time,
-                                readings_fetched, readings_inserted, readings_rejected,
-                                status, error_message
-                            )
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                        """, (org_id, ch_id, st, et, r_fetched, r_inserted, r_rejected, r_status, r_err))
-                db.conn.commit()
-            except Exception as audit_err:
-                logger.exception("Failed to write ingestion_logs audit (summary flow continues)")
-                try:
-                    db.conn.rollback()
-                except Exception:
-                    pass
 
             # ── Summary ─────────────────────────────────────────────────
             duration = time.time() - loop_start_time
