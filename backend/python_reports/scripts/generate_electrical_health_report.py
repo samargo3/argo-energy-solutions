@@ -469,8 +469,8 @@ class ElectricalHealthPDF(FPDF):
 
         if not neutral.get('data_available'):
             self._no_data_placeholder(
-                neutral.get('message', 'Neutral current data not yet available. '
-                             'Will populate after next ingestion cycle with expanded field capture.')
+                neutral.get('message', 'Neutral current data not yet available. Will populate '
+                             'after next ingestion cycle with expanded field capture.')
             )
             self.ln(5)
             self.set_font('Arial', 'B', 10)

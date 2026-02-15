@@ -76,6 +76,18 @@ logger = get_logger(__name__)
 init_sentry(service_name="ingest")
 
 
+def _safe_cost_value(r: Dict) -> Optional[float]:
+    """Extract and normalize cost from API response. Handles null, alternate keys, and non-numeric."""
+    raw = r.get('cost') or r.get('Cost')
+    if raw is None:
+        return None
+    try:
+        val = float(raw)
+        return round(val, 2)
+    except (TypeError, ValueError):
+        return None
+
+
 def _load_password_safely() -> str:
     """Load password from env; reject empty/missing values to avoid auth issues."""
     raw = os.getenv('ENISCOPE_PASSWORD') or os.getenv('VITE_ENISCOPE_PASSWORD')
@@ -302,7 +314,7 @@ class EniscopeClient:
                 'frequency_hz': r.get('F'),
                 'thd_current': r.get('D'),
                 'neutral_current_a': r.get('In'),
-                'cost': round(r.get('cost'), 2) if r.get('cost') is not None else None,
+                'cost': _safe_cost_value(r),
                 # Phase-level energy (Wh -> kWh, already divided by 1000)
                 'energy_kwh1': r.get('E1') / 1000.0 if r.get('E1') is not None else None,
                 'energy_kwh2': r.get('E2') / 1000.0 if r.get('E2') is not None else None,
@@ -868,6 +880,19 @@ def ingest_data(
                             organization_id=site_id, date_str=date_str,
                         )
                         total_readings += inserted
+
+                        # Warn if channel returned readings but no cost data (CFO report needs it)
+                        if fetched > 0 and not any(r.get('cost') is not None for r in readings):
+                            logger.warning(
+                                "Channel returned no cost data",
+                                extra={
+                                    "channel_id": ch['id'],
+                                    "channel_name": ch['name'],
+                                    "date": date_str,
+                                    "readings_count": fetched,
+                                },
+                            )
+                            print(f"   ⚠️  ch:{ch['id']} ({ch['name']}) — no cost data for {date_str}", flush=True)
 
                         # Progress: show fetched vs inserted to spot dedup
                         print(f"   {date_str}  ch:{ch['id']} ({ch['name']})  →  fetched={fetched}, new={inserted}", flush=True)

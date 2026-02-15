@@ -41,6 +41,7 @@
     "py:cleanup": "source venv/bin/activate && python backend/python_scripts/operations/cleanup_old_files.py --execute",
     "py:cleanup:dry-run": "source venv/bin/activate && python backend/python_scripts/operations/cleanup_old_files.py",
     "py:operations:health": "source venv/bin/activate && python backend/python_scripts/operations/check_ingestion_health.py",
+    "py:diagnostic:neutral-current": "source venv/bin/activate && python backend/python_scripts/operations/diagnostic_neutral_current.py",
     "py:govern:quality": "source venv/bin/activate && python backend/python_scripts/govern/data_quality_report.py",
     "py:govern:quality:30d": "source venv/bin/activate && python backend/python_scripts/govern/data_quality_report.py --days 30",
     "py:ingest:test-auth": "source venv/bin/activate && python backend/python_scripts/ingest/test_auth_approaches.py",

@@ -9,15 +9,18 @@
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
--- DROP existing views that depend on v_clean_readings so we can recreate
--- with new column order. CASCADE from v_clean_readings handles the chain.
--- mv_hourly_usage is dropped separately below (line has its own DROP).
+-- DROP existing views in dependency order (children first, then parents).
+-- Must drop mv_hourly_usage BEFORE v_clean_readings so v_clean_readings can
+-- be dropped cleanly. PostgreSQL CREATE OR REPLACE VIEW cannot rename columns
+-- (e.g. created_at -> frequency_hz when adding electrical health columns), so
+-- we must DROP then CREATE v_clean_readings fresh.
 -- -----------------------------------------------------------------------------
 DROP VIEW IF EXISTS v_readings_monthly CASCADE;
 DROP VIEW IF EXISTS v_readings_daily CASCADE;
 DROP VIEW IF EXISTS v_readings_hourly CASCADE;
 DROP VIEW IF EXISTS v_latest_readings CASCADE;
 DROP VIEW IF EXISTS v_readings_enriched CASCADE;
+DROP MATERIALIZED VIEW IF EXISTS mv_hourly_usage CASCADE;
 DROP VIEW IF EXISTS v_clean_readings CASCADE;
 
 -- -----------------------------------------------------------------------------
@@ -25,7 +28,7 @@ DROP VIEW IF EXISTS v_clean_readings CASCADE;
 -- Source: readings (your raw table, conceptually energy_readings_raw)
 -- Ensures TIMESTAMPTZ and excludes rows with null/zero energy or power.
 -- -----------------------------------------------------------------------------
-CREATE OR REPLACE VIEW v_clean_readings AS
+CREATE VIEW v_clean_readings AS
 SELECT
     id,
     channel_id,
@@ -61,9 +64,8 @@ COMMENT ON VIEW v_clean_readings IS 'Clean readings: TIMESTAMPTZ, no null/zero e
 -- -----------------------------------------------------------------------------
 -- LAYER 2: Materialized hourly usage (supports REFRESH CONCURRENTLY)
 -- Groups v_clean_readings by hour and meter (channel_id).
+-- (mv_hourly_usage already dropped in DROP block above.)
 -- -----------------------------------------------------------------------------
-DROP MATERIALIZED VIEW IF EXISTS mv_hourly_usage CASCADE;
-
 CREATE MATERIALIZED VIEW mv_hourly_usage AS
 SELECT
     channel_id AS meter_id,

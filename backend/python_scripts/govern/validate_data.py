@@ -58,6 +58,7 @@ class DataValidator:
         self.check_schema_integrity()
         self.check_data_completeness()
         self.check_data_quality()
+        self.check_cost_completeness()
         self.check_temporal_continuity()
         self.check_channel_health()
         self.check_value_ranges()
@@ -261,6 +262,37 @@ class DataValidator:
             print(f"   ✅ No extreme outliers detected")
         
         cur.close()
+        print()
+    
+    def check_cost_completeness(self):
+        """Warn on channels with ≥100 readings but 100% null cost (CFO report needs it)."""
+        print("💰 Checking Cost Data Completeness...")
+        cur = self.conn.cursor()
+        cur.execute("""
+            SELECT
+                r.channel_id,
+                c.channel_name,
+                COUNT(*) as total,
+                COUNT(r.cost) as with_cost
+            FROM readings r
+            JOIN channels c ON r.channel_id = c.channel_id
+            GROUP BY r.channel_id, c.channel_name
+            HAVING COUNT(*) >= 100 AND COUNT(r.cost) = 0
+            ORDER BY COUNT(*) DESC
+        """)
+        no_cost_channels = cur.fetchall()
+        cur.close()
+        if no_cost_channels:
+            self.warnings.append(
+                f"{len(no_cost_channels)} active channels have 100% null cost (CFO report may be incomplete)"
+            )
+            print(f"   ⚠️  {len(no_cost_channels)} channels with ≥100 readings but no cost data:")
+            for ch_id, ch_name, total, _ in no_cost_channels[:5]:
+                print(f"      {ch_name} (ID: {ch_id}): {total:,} readings")
+            if len(no_cost_channels) > 5:
+                print(f"      ... and {len(no_cost_channels) - 5} more")
+        else:
+            print(f"   ✅ All active channels have some cost data or <100 readings")
         print()
     
     def check_temporal_continuity(self):
