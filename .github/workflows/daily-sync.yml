@@ -55,7 +55,8 @@ jobs:
           SITES_JSON: ${{ steps.sites.outputs.sites_json }}
         run: |
           FAILED=0
-          for site in $(echo "$SITES_JSON" | jq -c '.[]'); do
+          mapfile -t sites < <(echo "$SITES_JSON" | jq -c '.[]')
+          for site in "${sites[@]}"; do
             SITE_ID=$(echo "$site" | jq -r '.site_id')
             WCDS=$(echo "$site" | jq -r '.wcds_only // false')
             RES=$(echo "$site" | jq -r '.resolution // 3600')
