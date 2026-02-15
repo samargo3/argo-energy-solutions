@@ -8,6 +8,7 @@ on:
   workflow_dispatch: # Allow manual trigger
 
 permissions:
+  contents: read   # Required for actions/checkout to clone the repo
   issues: write
 
 jobs:

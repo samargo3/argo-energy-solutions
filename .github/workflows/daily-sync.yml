@@ -7,6 +7,7 @@ on:
   workflow_dispatch: # Allow manual trigger
 
 permissions:
+  contents: read   # Required for actions/checkout to clone the repo
   issues: write
 
 jobs:
@@ -37,11 +38,12 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
-          SITE_LIST=$(python backend/python_scripts/operations/list_active_sites.py)
-          echo "site_list<<EOF" >> "$GITHUB_OUTPUT"
-          echo "$SITE_LIST" >> "$GITHUB_OUTPUT"
+          SITES_JSON=$(python backend/python_scripts/operations/list_active_sites.py --json)
+          echo "sites_json<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$SITES_JSON" >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
-          echo "Discovered active sites: $SITE_LIST"
+          echo "Discovered active sites (from sites table):"
+          echo "$SITES_JSON" | jq -r '.[] | "  \(.site_name) (id=\(.site_id)) wcds_only=\(.wcds_only) resolution=\(.resolution)"'
 
       - name: Run ingestion for each site
         env:
@@ -50,16 +52,21 @@ jobs:
           ENISCOPE_EMAIL: ${{ secrets.ENISCOPE_EMAIL }}
           ENISCOPE_PASSWORD: ${{ secrets.ENISCOPE_PASSWORD }}
           ENISCOPE_API_URL: https://core.eniscope.com
+          SITES_JSON: ${{ steps.sites.outputs.sites_json }}
         run: |
           FAILED=0
-          while IFS= read -r SITE_ID; do
-            [ -z "$SITE_ID" ] && continue
+          for site in $(echo "$SITES_JSON" | jq -c '.[]'); do
+            SITE_ID=$(echo "$site" | jq -r '.site_id')
+            WCDS=$(echo "$site" | jq -r '.wcds_only // false')
+            RES=$(echo "$site" | jq -r '.resolution // 3600')
+            WCDS_FLAG=""
+            [ "$WCDS" = "true" ] && WCDS_FLAG="--wcds-only"
             echo ""
-            echo "=== Syncing site $SITE_ID ==="
+            echo "=== Syncing site $SITE_ID (resolution=${RES}s, wcds_only=${WCDS}) ==="
             python backend/python_scripts/ingest/ingest_to_postgres.py \
-              --site "$SITE_ID" --days 3 --wcds-only --resolution 3600 \
+              --site "$SITE_ID" --days 3 $WCDS_FLAG --resolution "$RES" \
             || { echo "Site $SITE_ID FAILED"; FAILED=1; }
-          done <<< "${{ steps.sites.outputs.site_list }}"
+          done
           if [ $FAILED -ne 0 ]; then exit 1; fi
 
       - name: Create issue on failure
