@@ -23,8 +23,8 @@ import base64
 import hashlib
 import time
 from pathlib import Path
-from datetime import datetime, timedelta, date
-from typing import List, Dict, Optional
+from datetime import datetime, timedelta, date, timezone
+from typing import List, Dict, Optional, Tuple
 import requests
 import psycopg2
 from psycopg2.extras import execute_batch
@@ -245,7 +245,10 @@ class EniscopeClient:
         if resolution is None:
             resolution = DEFAULT_RESOLUTION
         if fields is None:
-            fields = ['E', 'P', 'V', 'I', 'PF']
+            fields = ['E', 'P', 'V', 'I', 'PF', 'Q', 'S', 'F', 'D', 'In', 'cost',
+                      'E1', 'E2', 'E3', 'P1', 'P2', 'P3',
+                      'V1', 'V2', 'V3', 'I1', 'I2', 'I3',
+                      'PF1', 'PF2', 'PF3']
 
         # 1. Convert 'YYYY-MM-DD' string to Unix Timestamps (Start & End of day)
         dt_start = datetime.strptime(date_str, "%Y-%m-%d")
@@ -292,7 +295,34 @@ class EniscopeClient:
                 'power_kw': r.get('P') / 1000.0 if r.get('P') is not None else 0,
                 'voltage_v': r.get('V'),
                 'current_a': r.get('I'),
-                'power_factor': r.get('PF')
+                'power_factor': r.get('PF'),
+                # Electrical health fields
+                'reactive_power_kvar': r.get('Q') / 1000.0 if r.get('Q') is not None else None,
+                'apparent_power_va': r.get('S'),
+                'frequency_hz': r.get('F'),
+                'thd_current': r.get('D'),
+                'neutral_current_a': r.get('In'),
+                'cost': round(r.get('cost'), 2) if r.get('cost') is not None else None,
+                # Phase-level energy (Wh -> kWh, already divided by 1000)
+                'energy_kwh1': r.get('E1') / 1000.0 if r.get('E1') is not None else None,
+                'energy_kwh2': r.get('E2') / 1000.0 if r.get('E2') is not None else None,
+                'energy_kwh3': r.get('E3') / 1000.0 if r.get('E3') is not None else None,
+                # Phase-level power (W -> kW, already divided by 1000)
+                'power_kw1': r.get('P1') / 1000.0 if r.get('P1') is not None else None,
+                'power_kw2': r.get('P2') / 1000.0 if r.get('P2') is not None else None,
+                'power_kw3': r.get('P3') / 1000.0 if r.get('P3') is not None else None,
+                # Phase-level voltage (V, no conversion)
+                'voltage_v1': r.get('V1'),
+                'voltage_v2': r.get('V2'),
+                'voltage_v3': r.get('V3'),
+                # Phase-level current (A, no conversion)
+                'current_a1': r.get('I1'),
+                'current_a2': r.get('I2'),
+                'current_a3': r.get('I3'),
+                # Phase-level power factor (dimensionless)
+                'power_factor_1': r.get('PF1'),
+                'power_factor_2': r.get('PF2'),
+                'power_factor_3': r.get('PF3'),
             })
         
         return normalized
@@ -429,22 +459,101 @@ class PostgresDB:
             return f"voltage_out_of_range={voltage}"
         if pf is not None and (pf < -1 or pf > 1):
             return f"power_factor_invalid={pf}"
+        # Electrical health field validation
+        freq = r.get('frequency_hz')
+        if freq is not None and (freq < 55 or freq > 65):
+            return f"frequency_out_of_range={freq}"
+        thd_i = r.get('thd_current')
+        if thd_i is not None and (thd_i < 0 or thd_i > 500):
+            return f"thd_current_invalid={thd_i}"
+        neutral = r.get('neutral_current_a')
+        if neutral is not None and neutral < 0:
+            return f"neutral_current_negative={neutral}"
+        # Phase voltage validation (same range as system voltage)
+        for phase_v in ('voltage_v1', 'voltage_v2', 'voltage_v3'):
+            pv = r.get(phase_v)
+            if pv is not None and (pv < 50 or pv > 600):
+                return f"{phase_v}_out_of_range={pv}"
+        # Phase power factor validation
+        for phase_pf in ('power_factor_1', 'power_factor_2', 'power_factor_3'):
+            ppf = r.get(phase_pf)
+            if ppf is not None and (ppf < -1 or ppf > 1):
+                return f"{phase_pf}_invalid={ppf}"
         # Reject if both energy and power are null (no useful data)
         if energy is None and power is None:
             return "both_energy_and_power_null"
         return None
 
-    def insert_readings(self, channel_id: int, readings: List[Dict]) -> int:
-        """Batch insert readings with pre-insertion validation."""
+    def _ensure_ingestion_logs_table(self, cur) -> None:
+        """Ensure ingestion_logs table exists (required by Argo governance)."""
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS ingestion_logs (
+                id SERIAL PRIMARY KEY,
+                organization_id TEXT NOT NULL,
+                channel_id INTEGER NOT NULL,
+                start_time TIMESTAMPTZ NOT NULL,
+                end_time TIMESTAMPTZ NOT NULL,
+                readings_fetched INTEGER NOT NULL DEFAULT 0,
+                readings_inserted INTEGER NOT NULL DEFAULT 0,
+                readings_rejected INTEGER NOT NULL DEFAULT 0,
+                status TEXT NOT NULL DEFAULT 'success',
+                error_message TEXT,
+                created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+    def _log_ingestion(
+        self, cur, organization_id: str, channel_id: int,
+        start_time: datetime, end_time: datetime,
+        fetched: int, inserted: int, rejected: int,
+        status: str, error_message: Optional[str] = None,
+    ) -> None:
+        """Write an ingestion attempt to ingestion_logs."""
+        cur.execute("""
+            INSERT INTO ingestion_logs (
+                organization_id, channel_id, start_time, end_time,
+                readings_fetched, readings_inserted, readings_rejected,
+                status, error_message
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (organization_id, channel_id, start_time, end_time,
+              fetched, inserted, rejected, status, error_message))
+
+    def insert_readings(
+        self, channel_id: int, readings: List[Dict],
+        organization_id: Optional[str] = None, date_str: Optional[str] = None,
+    ) -> Tuple[int, int]:
+        """Batch insert readings with pre-insertion validation.
+        Logs each attempt to ingestion_logs when organization_id and date_str are provided.
+        """
         if not readings:
-            return 0
+            return 0, 0
 
         inserted = 0
         rejected_count = 0
         rejection_reasons: Dict[str, int] = {}
         batch_size = 1000
 
+        start_time = None
+        end_time = None
+        if organization_id and date_str:
+            try:
+                start_time = datetime.strptime(date_str, '%Y-%m-%d').replace(tzinfo=timezone.utc)
+                end_time = start_time + timedelta(days=1)
+            except ValueError:
+                pass
+
+        ingestion_failed = False
+        last_error = None
+
         with self.conn.cursor() as cur:
+            if start_time is not None and end_time is not None:
+                self._ensure_ingestion_logs_table(cur)
+                self._log_ingestion(
+                    cur, organization_id, channel_id, start_time, end_time,
+                    fetched=len(readings), inserted=0, rejected=0,
+                    status='attempt', error_message=None,
+                )
             for i in range(0, len(readings), batch_size):
                 batch = readings[i:i + batch_size]
 
@@ -455,15 +564,21 @@ class PostgresDB:
                         rejected_count += 1
                         rejection_reasons[reason] = rejection_reasons.get(reason, 0) + 1
                         continue
+                    ts_val = (datetime.fromtimestamp(r['timestamp'])
+                             if isinstance(r['timestamp'], (int, float))
+                             else datetime.fromisoformat(str(r['timestamp']).replace('Z', '+00:00')))
                     valid_batch.append(
-                        (channel_id,
-                         datetime.fromtimestamp(r['timestamp']) if isinstance(r['timestamp'], (int, float))
-                         else datetime.fromisoformat(str(r['timestamp']).replace('Z', '+00:00')),
-                         r['energy_kwh'],
-                         r['power_kw'],
-                         r['voltage_v'],
-                         r['current_a'],
-                         r['power_factor'])
+                        (channel_id, ts_val,
+                         r['energy_kwh'], r['power_kw'],
+                         r['voltage_v'], r['current_a'], r['power_factor'],
+                         r.get('reactive_power_kvar'), r.get('apparent_power_va'),
+                         r.get('frequency_hz'), r.get('thd_current'),
+                         r.get('neutral_current_a'), r.get('cost'),
+                         r.get('voltage_v1'), r.get('voltage_v2'), r.get('voltage_v3'),
+                         r.get('current_a1'), r.get('current_a2'), r.get('current_a3'),
+                         r.get('power_kw1'), r.get('power_kw2'), r.get('power_kw3'),
+                         r.get('power_factor_1'), r.get('power_factor_2'), r.get('power_factor_3'),
+                         r.get('energy_kwh1'), r.get('energy_kwh2'), r.get('energy_kwh3'))
                     )
 
                 if not valid_batch:
@@ -471,21 +586,42 @@ class PostgresDB:
 
                 try:
                     execute_batch(cur, """
-                        INSERT INTO readings (channel_id, timestamp, energy_kwh, power_kw,
-                                            voltage_v, current_a, power_factor)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s)
-                        ON CONFLICT (channel_id, timestamp) DO UPDATE SET
-                            current_a = COALESCE(EXCLUDED.current_a, readings.current_a),
-                            power_factor = COALESCE(EXCLUDED.power_factor, readings.power_factor)
+                        INSERT INTO readings (
+                            channel_id, timestamp, energy_kwh, power_kw,
+                            voltage_v, current_a, power_factor,
+                            reactive_power_kvar, apparent_power_va,
+                            frequency_hz, thd_current,
+                            neutral_current_a, cost,
+                            voltage_v1, voltage_v2, voltage_v3,
+                            current_a1, current_a2, current_a3,
+                            power_w1, power_w2, power_w3,
+                            power_factor_1, power_factor_2, power_factor_3,
+                            energy_wh1, energy_wh2, energy_wh3
+                        )
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        ON CONFLICT (channel_id, timestamp) DO NOTHING
                     """, valid_batch)
 
                     inserted += cur.rowcount
                 except Exception as e:
+                    ingestion_failed = True
+                    last_error = str(e)
                     print(f"   Error inserting batch: {e}")
                     self.conn.rollback()
                     continue
 
         self.conn.commit()
+
+        if start_time is not None and end_time is not None and organization_id:
+            with self.conn.cursor() as cur:
+                self._log_ingestion(
+                    cur, organization_id, channel_id, start_time, end_time,
+                    fetched=len(readings), inserted=inserted, rejected=rejected_count,
+                    status='failure' if ingestion_failed else 'success',
+                    error_message=last_error if ingestion_failed else None,
+                )
+            self.conn.commit()
 
         if rejected_count > 0:
             reasons_str = ", ".join(f"{k}={v}" for k, v in rejection_reasons.items())
@@ -500,7 +636,7 @@ class PostgresDB:
             )
             print(f"   ⚠️  Rejected {rejected_count} readings: {reasons_str}")
 
-        return inserted
+        return inserted, rejected_count
     
     def get_total_readings(self) -> int:
         """Get total number of readings in database."""
@@ -712,22 +848,25 @@ def ingest_data(
 
             total_readings = 0
             total_errors = 0
-            start_time = time.time()
+            loop_start_time = time.time()
             current = start_date
 
             while current <= end_date:
                 date_str = current.isoformat()  # 'YYYY-MM-DD'
 
                 for ch in fetch_channels:
+                    fetched = 0
                     try:
                         readings = client.get_readings(
                             ch['id'],
                             date_str,
-                            fields=['E', 'P', 'V', 'I', 'PF'],
                             resolution=res,
                         )
                         fetched = len(readings)
-                        inserted = db.insert_readings(ch['id'], readings)
+                        inserted, rejected = db.insert_readings(
+                            ch['id'], readings,
+                            organization_id=site_id, date_str=date_str,
+                        )
                         total_readings += inserted
 
                         # Progress: show fetched vs inserted to spot dedup
@@ -743,7 +882,7 @@ def ingest_data(
                 current += timedelta(days=1)
 
             # ── Summary ─────────────────────────────────────────────────
-            duration = time.time() - start_time
+            duration = time.time() - loop_start_time
 
             print(f"\n✅ Ingestion complete!")
             print(f"   Days processed: {num_days}")

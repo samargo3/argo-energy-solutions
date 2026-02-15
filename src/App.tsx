@@ -8,6 +8,7 @@ import CustomerPortal from './pages/CustomerPortal'
 import Reports from './pages/Reports'
 import WilsonCenterReport from './pages/WilsonCenterReport'
 import WeeklyReport from './pages/WeeklyReport'
+import ElectricalHealthReport from './pages/ElectricalHealthReport'
 import ApiTest from './pages/ApiTest'
 import EnergyHistory from './pages/EnergyHistory'
 import LoginPage from './pages/LoginPage'
@@ -30,6 +31,7 @@ function AppRoutes() {
         <Route path="reports" element={<Reports />} />
         <Route path="reports/wilson-center" element={<WilsonCenterReport />} />
         <Route path="reports/weekly" element={<WeeklyReport />} />
+        <Route path="reports/electrical-health" element={<ElectricalHealthReport />} />
         <Route path="api-test" element={<ApiTest />} />
         <Route path="energy-history" element={<EnergyHistory />} />
       </Route>

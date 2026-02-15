@@ -38,6 +38,7 @@ import hmac
 import json
 import logging
 import os
+import sys
 import secrets
 import time
 from base64 import b64encode
@@ -52,7 +53,7 @@ from psycopg2.extras import RealDictCursor
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel
 
 # ---------------------------------------------------------------------------
@@ -919,7 +920,7 @@ async def get_weekly_report_by_name(site_id: str, filename: str):
 @app.get("/api/reports/data-quality/{site_id}", dependencies=[Depends(require_auth)])
 async def get_data_quality_summary(site_id: str):
     """Return current data quality metrics for a site."""
-    with get_conn() as conn:
+    with get_connection() as conn:
         cur = conn.cursor(cursor_factory=RealDictCursor)
 
         # Channel completeness for last 7 days
@@ -964,3 +965,79 @@ async def get_data_quality_summary(site_id: str):
             "avg_completeness_pct": round(avg_completeness, 1),
             "channels": channels,
         }
+
+
+# ── Electrical Health Screening ──────────────────────────────────────
+
+@app.get("/api/reports/electrical-health/{site_id}", dependencies=[Depends(require_auth)])
+async def generate_electrical_health_pdf(
+    site_id: str,
+    start_date: str = Query(None, description="Start date YYYY-MM-DD (default: 30 days ago)"),
+    end_date: str = Query(None, description="End date YYYY-MM-DD (default: today)"),
+    nominal_voltage: Optional[int] = Query(None, description="Nominal voltage (120/208/277/480)"),
+):
+    """Generate and return Electrical Health Screening PDF for a site."""
+    if not end_date:
+        end_date = datetime.now().strftime('%Y-%m-%d')
+    if not start_date:
+        start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+
+    try:
+        with get_connection() as conn:
+            # Import the PDF generator
+            _reports_dir = _PROJECT_ROOT / 'reports'
+            _reports_pkg = _PROJECT_ROOT / 'backend' / 'python_reports' / 'scripts'
+            if str(_reports_pkg) not in sys.path:
+                sys.path.insert(0, str(_reports_pkg))
+            if str(_PROJECT_ROOT / 'backend' / 'python_scripts') not in sys.path:
+                sys.path.insert(0, str(_PROJECT_ROOT / 'backend' / 'python_scripts'))
+
+            from generate_electrical_health_report import ElectricalHealthReportGenerator
+
+            generator = ElectricalHealthReportGenerator(
+                conn=conn,
+                site_id=site_id,
+                start_date=start_date,
+                end_date=end_date,
+                nominal_voltage=nominal_voltage,
+                output_dir=str(_reports_dir),
+            )
+            pdf_path = generator.generate()
+
+        return FileResponse(
+            pdf_path,
+            media_type='application/pdf',
+            filename=Path(pdf_path).name,
+        )
+    except Exception as exc:
+        logger.error("Electrical health report error for site %s: %s", site_id, exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/api/analytics/electrical-health/{site_id}", dependencies=[Depends(require_auth)])
+async def analytics_electrical_health(
+    site_id: str,
+    start_date: str = Query(None, description="Start date YYYY-MM-DD"),
+    end_date: str = Query(None, description="End date YYYY-MM-DD"),
+    nominal_voltage: Optional[int] = Query(None, description="Nominal voltage"),
+):
+    """Return electrical health analytics as JSON (no PDF generation)."""
+    if not end_date:
+        end_date = datetime.now().strftime('%Y-%m-%d')
+    if not start_date:
+        start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+
+    try:
+        with get_connection() as conn:
+            if str(_PROJECT_ROOT / 'backend' / 'python_scripts') not in sys.path:
+                sys.path.insert(0, str(_PROJECT_ROOT / 'backend' / 'python_scripts'))
+
+            from analyze.electrical_health import generate_electrical_health_data
+
+            data = generate_electrical_health_data(
+                conn, site_id, start_date, end_date, nominal_voltage,
+            )
+        return data
+    except Exception as exc:
+        logger.error("Electrical health analytics error for site %s: %s", site_id, exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc

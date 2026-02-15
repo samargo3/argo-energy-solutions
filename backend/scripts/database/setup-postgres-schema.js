@@ -71,6 +71,18 @@ CREATE TABLE IF NOT EXISTS readings (
   reactive_power_kvar REAL,
   temperature_c REAL,
   relative_humidity REAL,
+  -- Electrical health fields (added via add_electrical_health_columns.py)
+  frequency_hz REAL,
+  neutral_current_a REAL,
+  thd_current REAL,
+  apparent_power_va REAL,
+  cost NUMERIC(12,2),
+  -- Phase-level fields
+  voltage_v1 REAL, voltage_v2 REAL, voltage_v3 REAL,
+  current_a1 REAL, current_a2 REAL, current_a3 REAL,
+  power_w1 REAL, power_w2 REAL, power_w3 REAL,
+  power_factor_1 REAL, power_factor_2 REAL, power_factor_3 REAL,
+  energy_wh1 REAL, energy_wh2 REAL, energy_wh3 REAL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
