@@ -25,7 +25,9 @@ ALTER TABLE readings ADD COLUMN IF NOT EXISTS frequency_hz REAL;
 ALTER TABLE readings ADD COLUMN IF NOT EXISTS neutral_current_a REAL;
 ALTER TABLE readings ADD COLUMN IF NOT EXISTS thd_current REAL;
 ALTER TABLE readings ADD COLUMN IF NOT EXISTS apparent_power_va REAL;
-ALTER TABLE readings ADD COLUMN IF NOT EXISTS cost REAL;
+ALTER TABLE readings ADD COLUMN IF NOT EXISTS cost NUMERIC(12,2);
+-- Migrate existing REAL cost to NUMERIC(12,2) (idempotent for fixed-precision monetary values)
+ALTER TABLE readings ALTER COLUMN cost TYPE NUMERIC(12,2) USING cost::NUMERIC(12,2);
 
 -- Phase-level voltage (Line-to-Neutral)
 ALTER TABLE readings ADD COLUMN IF NOT EXISTS voltage_v1 REAL;

@@ -920,7 +920,7 @@ async def get_weekly_report_by_name(site_id: str, filename: str):
 @app.get("/api/reports/data-quality/{site_id}", dependencies=[Depends(require_auth)])
 async def get_data_quality_summary(site_id: str):
     """Return current data quality metrics for a site."""
-    with get_conn() as conn:
+    with get_connection() as conn:
         cur = conn.cursor(cursor_factory=RealDictCursor)
 
         # Channel completeness for last 7 days
@@ -983,7 +983,7 @@ async def generate_electrical_health_pdf(
         start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
 
     try:
-        with get_conn() as conn:
+        with get_connection() as conn:
             # Import the PDF generator
             _reports_dir = _PROJECT_ROOT / 'reports'
             _reports_pkg = _PROJECT_ROOT / 'backend' / 'python_reports' / 'scripts'
@@ -1028,7 +1028,7 @@ async def analytics_electrical_health(
         start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
 
     try:
-        with get_conn() as conn:
+        with get_connection() as conn:
             if str(_PROJECT_ROOT / 'backend' / 'python_scripts') not in sys.path:
                 sys.path.insert(0, str(_PROJECT_ROOT / 'backend' / 'python_scripts'))
 

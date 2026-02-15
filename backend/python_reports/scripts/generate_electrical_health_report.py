@@ -553,7 +553,6 @@ class ElectricalHealthReportGenerator:
         self.end_date = end_date
         self.nominal_voltage = nominal_voltage
         self.output_dir = output_dir
-        self.chart_dir = os.path.join(output_dir, 'charts')
 
     def _get_site_name(self) -> str:
         """Fetch site name from v_sites (Layer 3)."""
@@ -574,46 +573,40 @@ class ElectricalHealthReportGenerator:
 
         from analyze.electrical_health import generate_electrical_health_data
 
-        os.makedirs(self.chart_dir, exist_ok=True)
+        with tempfile.TemporaryDirectory() as chart_dir:
+            # 1. Fetch analytics data (Stage 3)
+            data = generate_electrical_health_data(
+                self.conn, self.site_id, self.start_date, self.end_date,
+                self.nominal_voltage,
+            )
 
-        # 1. Fetch analytics data (Stage 3)
-        data = generate_electrical_health_data(
-            self.conn, self.site_id, self.start_date, self.end_date,
-            self.nominal_voltage,
-        )
+            # 2. Fetch site name
+            site_name = self._get_site_name()
 
-        # 2. Fetch site name
-        site_name = self._get_site_name()
+            # 3. Generate charts into per-run isolated directory
+            voltage_chart = generate_voltage_chart(data['voltage_stability'], chart_dir)
+            current_chart = generate_current_chart(data['current_peaks'], chart_dir)
+            frequency_chart = generate_frequency_chart(data['frequency_excursions'], chart_dir)
+            neutral_chart = generate_neutral_chart(data['neutral_current'], chart_dir)
+            thd_chart = generate_thd_chart(data['thd_analysis'], chart_dir)
 
-        # 3. Generate charts
-        voltage_chart = generate_voltage_chart(data['voltage_stability'], self.chart_dir)
-        current_chart = generate_current_chart(data['current_peaks'], self.chart_dir)
-        frequency_chart = generate_frequency_chart(data['frequency_excursions'], self.chart_dir)
-        neutral_chart = generate_neutral_chart(data['neutral_current'], self.chart_dir)
-        thd_chart = generate_thd_chart(data['thd_analysis'], self.chart_dir)
+            # 4. Assemble PDF
+            pdf = ElectricalHealthPDF()
+            pdf.set_auto_page_break(auto=True, margin=20)
 
-        # 4. Assemble PDF
-        pdf = ElectricalHealthPDF()
-        pdf.set_auto_page_break(auto=True, margin=20)
+            pdf.add_cover_page(site_name, self.start_date, self.end_date)
+            pdf.add_executive_summary(data)
+            pdf.add_voltage_section(data['voltage_stability'], voltage_chart)
+            pdf.add_current_section(data['current_peaks'], current_chart)
+            pdf.add_frequency_section(data['frequency_excursions'], frequency_chart)
+            pdf.add_neutral_section(data['neutral_current'], neutral_chart)
+            pdf.add_thd_section(data['thd_analysis'], thd_chart)
 
-        pdf.add_cover_page(site_name, self.start_date, self.end_date)
-        pdf.add_executive_summary(data)
-        pdf.add_voltage_section(data['voltage_stability'], voltage_chart)
-        pdf.add_current_section(data['current_peaks'], current_chart)
-        pdf.add_frequency_section(data['frequency_excursions'], frequency_chart)
-        pdf.add_neutral_section(data['neutral_current'], neutral_chart)
-        pdf.add_thd_section(data['thd_analysis'], thd_chart)
-
-        # 5. Save
-        filename = f"electrical-health-{self.site_id}-{self.start_date}-to-{self.end_date}.pdf"
-        output_path = os.path.join(self.output_dir, filename)
-        os.makedirs(self.output_dir, exist_ok=True)
-        pdf.output(output_path)
-
-        # Clean up chart files
-        for chart in [voltage_chart, current_chart, frequency_chart, neutral_chart, thd_chart]:
-            if chart and os.path.exists(chart):
-                os.remove(chart)
+            # 5. Save (output_dir is persistent; charts live only in chart_dir)
+            filename = f"electrical-health-{self.site_id}-{self.start_date}-to-{self.end_date}.pdf"
+            output_path = os.path.join(self.output_dir, filename)
+            os.makedirs(self.output_dir, exist_ok=True)
+            pdf.output(output_path)
 
         print(f"Report generated: {output_path}")
         return output_path

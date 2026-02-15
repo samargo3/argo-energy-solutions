@@ -76,7 +76,7 @@ CREATE TABLE IF NOT EXISTS readings (
   neutral_current_a REAL,
   thd_current REAL,
   apparent_power_va REAL,
-  cost REAL,
+  cost NUMERIC(12,2),
   -- Phase-level fields
   voltage_v1 REAL, voltage_v2 REAL, voltage_v3 REAL,
   current_a1 REAL, current_a2 REAL, current_a3 REAL,
