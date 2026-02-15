@@ -245,7 +245,10 @@ class EniscopeClient:
         if resolution is None:
             resolution = DEFAULT_RESOLUTION
         if fields is None:
-            fields = ['E', 'P', 'V', 'I', 'PF']
+            fields = ['E', 'P', 'V', 'I', 'PF', 'Q', 'S', 'F', 'D', 'In', 'cost',
+                      'E1', 'E2', 'E3', 'P1', 'P2', 'P3',
+                      'V1', 'V2', 'V3', 'I1', 'I2', 'I3',
+                      'PF1', 'PF2', 'PF3']
 
         # 1. Convert 'YYYY-MM-DD' string to Unix Timestamps (Start & End of day)
         dt_start = datetime.strptime(date_str, "%Y-%m-%d")
@@ -292,7 +295,34 @@ class EniscopeClient:
                 'power_kw': r.get('P') / 1000.0 if r.get('P') is not None else 0,
                 'voltage_v': r.get('V'),
                 'current_a': r.get('I'),
-                'power_factor': r.get('PF')
+                'power_factor': r.get('PF'),
+                # Electrical health fields
+                'reactive_power_kvar': r.get('Q') / 1000.0 if r.get('Q') is not None else None,
+                'apparent_power_va': r.get('S'),
+                'frequency_hz': r.get('F'),
+                'thd_current': r.get('D'),
+                'neutral_current_a': r.get('In'),
+                'cost': r.get('cost'),
+                # Phase-level energy (Wh -> kWh)
+                'energy_wh1': r.get('E1') / 1000.0 if r.get('E1') is not None else None,
+                'energy_wh2': r.get('E2') / 1000.0 if r.get('E2') is not None else None,
+                'energy_wh3': r.get('E3') / 1000.0 if r.get('E3') is not None else None,
+                # Phase-level power (W -> kW)
+                'power_w1': r.get('P1') / 1000.0 if r.get('P1') is not None else None,
+                'power_w2': r.get('P2') / 1000.0 if r.get('P2') is not None else None,
+                'power_w3': r.get('P3') / 1000.0 if r.get('P3') is not None else None,
+                # Phase-level voltage (V, no conversion)
+                'voltage_v1': r.get('V1'),
+                'voltage_v2': r.get('V2'),
+                'voltage_v3': r.get('V3'),
+                # Phase-level current (A, no conversion)
+                'current_a1': r.get('I1'),
+                'current_a2': r.get('I2'),
+                'current_a3': r.get('I3'),
+                # Phase-level power factor (dimensionless)
+                'power_factor_1': r.get('PF1'),
+                'power_factor_2': r.get('PF2'),
+                'power_factor_3': r.get('PF3'),
             })
         
         return normalized
@@ -429,6 +459,26 @@ class PostgresDB:
             return f"voltage_out_of_range={voltage}"
         if pf is not None and (pf < -1 or pf > 1):
             return f"power_factor_invalid={pf}"
+        # Electrical health field validation
+        freq = r.get('frequency_hz')
+        if freq is not None and (freq < 55 or freq > 65):
+            return f"frequency_out_of_range={freq}"
+        thd_i = r.get('thd_current')
+        if thd_i is not None and (thd_i < 0 or thd_i > 500):
+            return f"thd_current_invalid={thd_i}"
+        neutral = r.get('neutral_current_a')
+        if neutral is not None and neutral < 0:
+            return f"neutral_current_negative={neutral}"
+        # Phase voltage validation (same range as system voltage)
+        for phase_v in ('voltage_v1', 'voltage_v2', 'voltage_v3'):
+            pv = r.get(phase_v)
+            if pv is not None and (pv < 50 or pv > 600):
+                return f"{phase_v}_out_of_range={pv}"
+        # Phase power factor validation
+        for phase_pf in ('power_factor_1', 'power_factor_2', 'power_factor_3'):
+            ppf = r.get(phase_pf)
+            if ppf is not None and (ppf < -1 or ppf > 1):
+                return f"{phase_pf}_invalid={ppf}"
         # Reject if both energy and power are null (no useful data)
         if energy is None and power is None:
             return "both_energy_and_power_null"
@@ -455,15 +505,21 @@ class PostgresDB:
                         rejected_count += 1
                         rejection_reasons[reason] = rejection_reasons.get(reason, 0) + 1
                         continue
+                    ts_val = (datetime.fromtimestamp(r['timestamp'])
+                             if isinstance(r['timestamp'], (int, float))
+                             else datetime.fromisoformat(str(r['timestamp']).replace('Z', '+00:00')))
                     valid_batch.append(
-                        (channel_id,
-                         datetime.fromtimestamp(r['timestamp']) if isinstance(r['timestamp'], (int, float))
-                         else datetime.fromisoformat(str(r['timestamp']).replace('Z', '+00:00')),
-                         r['energy_kwh'],
-                         r['power_kw'],
-                         r['voltage_v'],
-                         r['current_a'],
-                         r['power_factor'])
+                        (channel_id, ts_val,
+                         r['energy_kwh'], r['power_kw'],
+                         r['voltage_v'], r['current_a'], r['power_factor'],
+                         r.get('reactive_power_kvar'), r.get('apparent_power_va'),
+                         r.get('frequency_hz'), r.get('thd_current'),
+                         r.get('neutral_current_a'), r.get('cost'),
+                         r.get('voltage_v1'), r.get('voltage_v2'), r.get('voltage_v3'),
+                         r.get('current_a1'), r.get('current_a2'), r.get('current_a3'),
+                         r.get('power_w1'), r.get('power_w2'), r.get('power_w3'),
+                         r.get('power_factor_1'), r.get('power_factor_2'), r.get('power_factor_3'),
+                         r.get('energy_wh1'), r.get('energy_wh2'), r.get('energy_wh3'))
                     )
 
                 if not valid_batch:
@@ -471,12 +527,44 @@ class PostgresDB:
 
                 try:
                     execute_batch(cur, """
-                        INSERT INTO readings (channel_id, timestamp, energy_kwh, power_kw,
-                                            voltage_v, current_a, power_factor)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        INSERT INTO readings (
+                            channel_id, timestamp, energy_kwh, power_kw,
+                            voltage_v, current_a, power_factor,
+                            reactive_power_kvar, apparent_power_va,
+                            frequency_hz, thd_current,
+                            neutral_current_a, cost,
+                            voltage_v1, voltage_v2, voltage_v3,
+                            current_a1, current_a2, current_a3,
+                            power_w1, power_w2, power_w3,
+                            power_factor_1, power_factor_2, power_factor_3,
+                            energy_wh1, energy_wh2, energy_wh3
+                        )
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                         ON CONFLICT (channel_id, timestamp) DO UPDATE SET
                             current_a = COALESCE(EXCLUDED.current_a, readings.current_a),
-                            power_factor = COALESCE(EXCLUDED.power_factor, readings.power_factor)
+                            power_factor = COALESCE(EXCLUDED.power_factor, readings.power_factor),
+                            reactive_power_kvar = COALESCE(EXCLUDED.reactive_power_kvar, readings.reactive_power_kvar),
+                            apparent_power_va = COALESCE(EXCLUDED.apparent_power_va, readings.apparent_power_va),
+                            frequency_hz = COALESCE(EXCLUDED.frequency_hz, readings.frequency_hz),
+                            thd_current = COALESCE(EXCLUDED.thd_current, readings.thd_current),
+                            neutral_current_a = COALESCE(EXCLUDED.neutral_current_a, readings.neutral_current_a),
+                            cost = COALESCE(EXCLUDED.cost, readings.cost),
+                            voltage_v1 = COALESCE(EXCLUDED.voltage_v1, readings.voltage_v1),
+                            voltage_v2 = COALESCE(EXCLUDED.voltage_v2, readings.voltage_v2),
+                            voltage_v3 = COALESCE(EXCLUDED.voltage_v3, readings.voltage_v3),
+                            current_a1 = COALESCE(EXCLUDED.current_a1, readings.current_a1),
+                            current_a2 = COALESCE(EXCLUDED.current_a2, readings.current_a2),
+                            current_a3 = COALESCE(EXCLUDED.current_a3, readings.current_a3),
+                            power_w1 = COALESCE(EXCLUDED.power_w1, readings.power_w1),
+                            power_w2 = COALESCE(EXCLUDED.power_w2, readings.power_w2),
+                            power_w3 = COALESCE(EXCLUDED.power_w3, readings.power_w3),
+                            power_factor_1 = COALESCE(EXCLUDED.power_factor_1, readings.power_factor_1),
+                            power_factor_2 = COALESCE(EXCLUDED.power_factor_2, readings.power_factor_2),
+                            power_factor_3 = COALESCE(EXCLUDED.power_factor_3, readings.power_factor_3),
+                            energy_wh1 = COALESCE(EXCLUDED.energy_wh1, readings.energy_wh1),
+                            energy_wh2 = COALESCE(EXCLUDED.energy_wh2, readings.energy_wh2),
+                            energy_wh3 = COALESCE(EXCLUDED.energy_wh3, readings.energy_wh3)
                     """, valid_batch)
 
                     inserted += cur.rowcount
@@ -723,7 +811,6 @@ def ingest_data(
                         readings = client.get_readings(
                             ch['id'],
                             date_str,
-                            fields=['E', 'P', 'V', 'I', 'PF'],
                             resolution=res,
                         )
                         fetched = len(readings)

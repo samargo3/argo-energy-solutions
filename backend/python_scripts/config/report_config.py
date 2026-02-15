@@ -119,6 +119,21 @@ DEFAULT_CONFIG = {
         'minTrainingRows': 48,          # minimum hourly data points
     },
     
+    # ── Electrical Health Screening ─────────────────────────────
+    'electricalHealth': {
+        'nominalVoltages': [120, 208, 277, 480],
+        'voltageTolerancePct': 5,           # +/- 5% of nominal
+        'frequencyBand': (59.95, 60.05),    # Hz, acceptable range
+        'thdCurrentLimitPct': 5.0,          # IEEE 519 typical limit
+        'neutralCurrentElevatedPct': 20,    # % of avg phase current
+        'healthScoreWeights': {
+            'voltage': 0.35,
+            'current': 0.25,
+            'frequency': 0.20,
+            'thd': 0.20,
+        },
+    },
+
     # Report output options
     'output': {
         'includeCharts': True,

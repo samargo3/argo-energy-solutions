@@ -38,6 +38,22 @@ export default function Reports() {
               View Weekly Report
             </Link>
           </div>
+
+          <div className="report-card">
+            <h2>Electrical Health Screening</h2>
+            <p>Monthly assessment of power quality, voltage stability, and harmonic distortion</p>
+            <ul className="report-features">
+              <li>&#10003; Voltage stability &amp; sag/swell events</li>
+              <li>&#10003; Peak current analysis</li>
+              <li>&#10003; Frequency excursion monitoring</li>
+              <li>&#10003; Neutral current indicators</li>
+              <li>&#10003; Current THD analysis</li>
+              <li>&#10003; Overall electrical health score</li>
+            </ul>
+            <Link to="/reports/electrical-health" className="btn btn-primary">
+              Generate Report
+            </Link>
+          </div>
         </div>
       </div>
     </div>

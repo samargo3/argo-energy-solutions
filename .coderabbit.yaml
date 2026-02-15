@@ -1,0 +1,82 @@
+# CodeRabbit Configuration for Argo Energy Solutions
+# Docs: https://docs.coderabbit.ai/guides/configure-coderabbit
+
+language: en-US
+
+reviews:
+  # Automatically review every PR
+  auto_review:
+    enabled: true
+    drafts: false  # Skip draft PRs
+
+  # High-level summary at the top of each review
+  request_changes_workflow: true
+
+  # Path-based review instructions so CodeRabbit understands
+  # the four-stage data governance architecture
+  path_instructions:
+    - path: "backend/python_scripts/ingest/**"
+      instructions: |
+        This is STAGE 1 (Ingest) of the data pipeline.
+        - Verify ON CONFLICT DO NOTHING is used to prevent duplicates.
+        - Ensure every attempt is logged to ingestion_logs.
+        - Flag any business logic or analytics — these belong in /analyze.
+        - Check for proper rate-limiting and API error handling.
+        - Verify Wh-to-kWh normalization is applied correctly.
+
+    - path: "backend/python_scripts/govern/**"
+      instructions: |
+        This is STAGE 2 (Govern) — the "Truth Layer."
+        - Verify schema changes are safe and backward-compatible.
+        - Check that materialized view refreshes are included.
+        - Ensure validation scripts act as circuit breakers — downstream
+          reports must be blocked if validation fails.
+        - No raw API calls should exist here.
+
+    - path: "backend/python_scripts/analyze/**"
+      instructions: |
+        This is STAGE 3 (Analyze) — pure business logic.
+        - CRITICAL: Analyze scripts must NEVER INSERT or UPDATE core reading tables.
+        - They should only READ from Layer 3 Business Views (e.g., v_readings_enriched).
+        - Check for proper statistical methodology and edge-case handling.
+        - Verify calculations are well-documented with comments.
+
+    - path: "backend/python_scripts/deliver/**"
+      instructions: |
+        This is STAGE 4 (Deliver) — the presentation layer.
+        - No heavy calculation logic allowed; it must call modules from /analyze.
+        - Check for proper formatting and stakeholder-friendly output.
+        - Verify PDF/HTML generation handles missing data gracefully.
+
+    - path: "backend/scripts/database/**"
+      instructions: |
+        Database schema and migration scripts.
+        - Check for destructive operations (DROP, TRUNCATE) — these need extra scrutiny.
+        - Verify CREATE OR REPLACE is used for views.
+        - Ensure proper indexing for query performance.
+
+    - path: "src/**"
+      instructions: |
+        Frontend React/TypeScript code.
+        - Check for proper TypeScript types (no 'any').
+        - Verify error states and loading states are handled.
+        - Ensure no credentials or API keys are exposed client-side.
+
+    - path: "backend/python_scripts/config/**"
+      instructions: |
+        Shared configuration.
+        - Ensure no hardcoded credentials.
+        - Verify environment variables are used for secrets.
+        - Check that config values are well-documented.
+
+  # Tools CodeRabbit should use for static analysis
+  tools:
+    eslint:
+      enabled: true
+    biome:
+      enabled: false
+    ruff:
+      enabled: true
+
+chat:
+  auto_reply: true

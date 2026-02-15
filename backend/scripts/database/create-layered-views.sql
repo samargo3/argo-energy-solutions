@@ -9,6 +9,18 @@
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
+-- DROP existing views that depend on v_clean_readings so we can recreate
+-- with new column order. CASCADE from v_clean_readings handles the chain.
+-- mv_hourly_usage is dropped separately below (line has its own DROP).
+-- -----------------------------------------------------------------------------
+DROP VIEW IF EXISTS v_readings_monthly CASCADE;
+DROP VIEW IF EXISTS v_readings_daily CASCADE;
+DROP VIEW IF EXISTS v_readings_hourly CASCADE;
+DROP VIEW IF EXISTS v_latest_readings CASCADE;
+DROP VIEW IF EXISTS v_readings_enriched CASCADE;
+DROP VIEW IF EXISTS v_clean_readings CASCADE;
+
+-- -----------------------------------------------------------------------------
 -- LAYER 1: Clean readings
 -- Source: readings (your raw table, conceptually energy_readings_raw)
 -- Ensures TIMESTAMPTZ and excludes rows with null/zero energy or power.
@@ -26,6 +38,18 @@ SELECT
     reactive_power_kvar,
     temperature_c,
     relative_humidity,
+    -- Electrical health fields
+    frequency_hz,
+    neutral_current_a,
+    thd_current,
+    apparent_power_va,
+    cost,
+    -- Phase-level fields
+    voltage_v1, voltage_v2, voltage_v3,
+    current_a1, current_a2, current_a3,
+    power_w1, power_w2, power_w3,
+    power_factor_1, power_factor_2, power_factor_3,
+    energy_wh1, energy_wh2, energy_wh3,
     created_at
 FROM readings
 WHERE energy_kwh IS NOT NULL AND energy_kwh <> 0
@@ -46,7 +70,14 @@ SELECT
     date_trunc('hour', timestamp) AS hour,
     AVG(power_kw)   AS avg_kw,
     SUM(energy_kwh) AS total_kwh,
-    COUNT(*)        AS reading_count
+    COUNT(*)        AS reading_count,
+    -- Electrical health aggregates
+    AVG(frequency_hz)       AS avg_frequency_hz,
+    AVG(neutral_current_a)  AS avg_neutral_current_a,
+    MAX(neutral_current_a)  AS max_neutral_current_a,
+    AVG(thd_current)        AS avg_thd_current,
+    MAX(thd_current)        AS max_thd_current,
+    AVG(apparent_power_va)  AS avg_apparent_power_va
 FROM v_clean_readings
 GROUP BY channel_id, date_trunc('hour', timestamp);
 
@@ -120,6 +151,18 @@ SELECT
     r.reactive_power_kvar,
     r.temperature_c,
     r.relative_humidity,
+    -- Electrical health fields
+    r.frequency_hz,
+    r.neutral_current_a,
+    r.thd_current,
+    r.apparent_power_va,
+    r.cost,
+    -- Phase-level fields
+    r.voltage_v1, r.voltage_v2, r.voltage_v3,
+    r.current_a1, r.current_a2, r.current_a3,
+    r.power_w1, r.power_w2, r.power_w3,
+    r.power_factor_1, r.power_factor_2, r.power_factor_3,
+    r.energy_wh1, r.energy_wh2, r.energy_wh3,
     r.created_at
 FROM v_clean_readings r
 JOIN channels c ON r.channel_id = c.channel_id
@@ -141,7 +184,11 @@ SELECT DISTINCT ON (r.channel_id)
     r.power_kw,
     r.voltage_v,
     r.current_a,
-    r.power_factor
+    r.power_factor,
+    r.frequency_hz,
+    r.neutral_current_a,
+    r.thd_current,
+    r.apparent_power_va
 FROM v_clean_readings r
 JOIN channels c ON r.channel_id = c.channel_id
 JOIN organizations o ON c.organization_id = o.organization_id
@@ -185,7 +232,19 @@ SELECT
     AVG(r.power_kw)     AS avg_power_kw,
     MAX(r.power_kw)     AS peak_power_kw,
     AVG(r.voltage_v)    AS avg_voltage_v,
+    MIN(r.voltage_v)    AS min_voltage_v,
+    MAX(r.voltage_v)    AS max_voltage_v,
     AVG(r.power_factor) AS avg_power_factor,
+    -- Electrical health daily aggregates
+    AVG(r.frequency_hz)       AS avg_frequency_hz,
+    MIN(r.frequency_hz)       AS min_frequency_hz,
+    MAX(r.frequency_hz)       AS max_frequency_hz,
+    AVG(r.neutral_current_a)  AS avg_neutral_current_a,
+    MAX(r.neutral_current_a)  AS max_neutral_current_a,
+    AVG(r.thd_current)        AS avg_thd_current,
+    MAX(r.thd_current)        AS max_thd_current,
+    AVG(r.apparent_power_va)  AS avg_apparent_power_va,
+    MAX(r.current_a)          AS peak_current_a,
     COUNT(*)            AS reading_count
 FROM v_clean_readings r
 JOIN channels c ON r.channel_id = c.channel_id

@@ -35,6 +35,10 @@ data/
 !reports/*.json
 !reports/*.html
 
+# Exclude generated PDF reports (large binary files, regenerate as needed)
+reports/*.pdf
+reports/charts/
+
 # Exports folder - large files, regenerate as needed
 exports/tableau/*.csv
 exports/archive/*
