@@ -116,3 +116,8 @@ jobs:
           echo "═══════════════════════════════════════════════════"
           echo "  ✅ All chunks complete!"
           echo "═══════════════════════════════════════════════════"
+
+      - name: Refresh materialized views
+        run: |
+          echo "Refreshing mv_hourly_usage (Govern stage)..."
+          python backend/python_scripts/govern/refresh_views.py
