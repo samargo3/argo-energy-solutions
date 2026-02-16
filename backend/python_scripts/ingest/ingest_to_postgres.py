@@ -629,7 +629,33 @@ class PostgresDB:
                         )
                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
                                 %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                        ON CONFLICT (channel_id, timestamp) DO NOTHING
+                        ON CONFLICT (channel_id, timestamp) DO UPDATE SET
+                            energy_kwh = EXCLUDED.energy_kwh,
+                            power_kw = EXCLUDED.power_kw,
+                            voltage_v = EXCLUDED.voltage_v,
+                            current_a = EXCLUDED.current_a,
+                            power_factor = EXCLUDED.power_factor,
+                            reactive_power_kvar = EXCLUDED.reactive_power_kvar,
+                            apparent_power_va = EXCLUDED.apparent_power_va,
+                            frequency_hz = EXCLUDED.frequency_hz,
+                            thd_current = EXCLUDED.thd_current,
+                            neutral_current_a = EXCLUDED.neutral_current_a,
+                            cost = EXCLUDED.cost,
+                            voltage_v1 = EXCLUDED.voltage_v1,
+                            voltage_v2 = EXCLUDED.voltage_v2,
+                            voltage_v3 = EXCLUDED.voltage_v3,
+                            current_a1 = EXCLUDED.current_a1,
+                            current_a2 = EXCLUDED.current_a2,
+                            current_a3 = EXCLUDED.current_a3,
+                            power_w1 = EXCLUDED.power_w1,
+                            power_w2 = EXCLUDED.power_w2,
+                            power_w3 = EXCLUDED.power_w3,
+                            power_factor_1 = EXCLUDED.power_factor_1,
+                            power_factor_2 = EXCLUDED.power_factor_2,
+                            power_factor_3 = EXCLUDED.power_factor_3,
+                            energy_wh1 = EXCLUDED.energy_wh1,
+                            energy_wh2 = EXCLUDED.energy_wh2,
+                            energy_wh3 = EXCLUDED.energy_wh3
                     """, valid_batch)
 
                     inserted += cur.rowcount

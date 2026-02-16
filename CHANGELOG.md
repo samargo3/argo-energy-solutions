@@ -2,6 +2,12 @@
 
 All notable changes to Argo Energy Solutions will be documented in this file.
 
+## [2026-02-16] — Phase metrics backfill support (stage: Ingest / Govern)
+- Changed `ingest_to_postgres.py` from `ON CONFLICT DO NOTHING` to `ON CONFLICT DO UPDATE SET` for readings
+- Enables re-ingestion to update existing rows with phase metrics (V1–V3, I1–I3, neutral current, THD, frequency, etc.) that were null before the electrical health fields were added
+- Added refresh of `mv_hourly_usage` to historical-backfill workflow (Govern step) after ingestion completes
+- **To backfill phase data (2025-04-29 → 2026-01-14):** Run "Historical backfill" workflow with START_DATE=2025-04-29, END_DATE=2026-01-14; the workflow now updates existing rows and refreshes materialized views
+
 ## [2026-02-15] — Fix v_clean_readings view column conflict (stage: Govern)
 - Fixed `npm run db:views` failing with "cannot change name of view column 'created_at' to 'frequency_hz'"
 - Updated `create-layered-views.sql`: drop `mv_hourly_usage` before `v_clean_readings` so the view can be dropped cleanly; use `CREATE VIEW` instead of `CREATE OR REPLACE` for v_clean_readings (PostgreSQL cannot rename columns via REPLACE)
