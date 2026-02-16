@@ -98,6 +98,23 @@ def _load_password_safely() -> str:
     return raw.strip()
 
 
+def _safe_cost_value(r: Dict) -> Optional[float]:
+    """Extract cost from a reading dict, preserving numeric zero.
+    Checks key presence explicitly so 0 is not treated as falsy."""
+    if 'cost' in r:
+        raw = r['cost']
+    elif 'Cost' in r:
+        raw = r['Cost']
+    else:
+        raw = None
+    if raw is None:
+        return None
+    try:
+        return round(float(raw), 4)
+    except (TypeError, ValueError):
+        return None
+
+
 class EniscopeClient:
     """Client for Eniscope API with Basic Auth, stealth headers, and rate limiting."""
     
