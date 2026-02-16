@@ -120,6 +120,8 @@ DEFAULT_CONFIG = {
     },
     
     # ── Electrical Health Screening ─────────────────────────────
+    # [2026-02-15] Neutral current (In) confirmed available from Wilson Center WCDS
+    # meters via diagnostic. API returns In; readings.neutral_current_a populated.
     'electricalHealth': {
         'nominalVoltages': [120, 208, 277, 480],
         'voltageTolerancePct': 5,           # +/- 5% of nominal

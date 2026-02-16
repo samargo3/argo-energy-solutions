@@ -202,14 +202,6 @@ The views are organized in three layers to separate raw data from business logic
 | `v_data_health_monitor` | Data freshness status per channel (CRITICAL / WARNING / HEALTHY) |
 | `v_virtual_readings` | Aggregated readings for virtual meters |
 
-### Known Issue — View Column Conflict
-
-Running `npm run db:views` currently fails with:
-```
-cannot change name of view column "created_at" to "frequency_hz"
-HINT: Use ALTER VIEW ... RENAME COLUMN ... to change name of view column instead.
-```
-This occurs because the `v_clean_readings` view was originally created without the electrical health columns, and PostgreSQL does not allow `CREATE OR REPLACE VIEW` to rename existing columns. Resolution: drop and recreate the view chain, or use `ALTER VIEW ... RENAME COLUMN`.
 
 ---
 
