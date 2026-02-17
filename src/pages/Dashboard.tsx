@@ -67,7 +67,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {(customersError || energyError) ? (
+        {(customersError || energyError) && !customersData && !energyData ? (
           <div className="error" role="alert">
             {(customersError as Error)?.message || (energyError as Error)?.message || 'An error occurred loading data'}
           </div>

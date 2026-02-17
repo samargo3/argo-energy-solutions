@@ -20,12 +20,12 @@ READINGS_PER_WEEK_HOURLY = 168    # 7 * 24
 # ── Data Validation Limits ───────────────────────────────────────────
 # Bounds used by ingestion and report pipelines to flag out-of-range readings.
 # Derived from typical US commercial building electrical service specs.
-MAX_POWER_KW = 5000               # kW – upper cap for a single meter/site
-VOLTAGE_MIN = 50                  # V  – low-side guard (covers 120/208/277/480 V services)
-VOLTAGE_MAX = 600                 # V  – high-side guard
-FREQUENCY_MIN_HZ = 55             # Hz – minimum acceptable grid frequency
-FREQUENCY_MAX_HZ = 65             # Hz – maximum acceptable grid frequency
-MAX_THD_CURRENT = 500             # %  – total harmonic distortion of current (IEEE 519 outlier cap)
+MAX_POWER_KW = 5000               # kW - upper cap for a single meter/site
+VOLTAGE_MIN = 50                  # V  - low-side guard (covers 120/208/277/480 V services)
+VOLTAGE_MAX = 600                 # V  - high-side guard
+FREQUENCY_MIN_HZ = 55             # Hz - minimum acceptable grid frequency
+FREQUENCY_MAX_HZ = 65             # Hz - maximum acceptable grid frequency
+MAX_THD_CURRENT = 500             # %  - total harmonic distortion of current (IEEE 519 outlier cap)
 
 # ── HTTP & Retry Defaults ────────────────────────────────────────────
 DEFAULT_API_TIMEOUT = 30          # seconds
@@ -33,8 +33,8 @@ LONG_API_TIMEOUT = 60             # seconds for large data requests
 DEFAULT_RETRY_ATTEMPTS = 3
 
 # ── Ingestion Health Thresholds ──────────────────────────────────────
-STALE_CRITICAL_HOURS = 24
-STALE_WARNING_HOURS = 6
+STALE_CRITICAL_HOURS = 24         # hours
+STALE_WARNING_HOURS = 6           # hours
 
 
 # Default configuration

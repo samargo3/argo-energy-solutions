@@ -87,7 +87,7 @@ describe('Dashboard', () => {
     expect(screen.getByText('Customer B')).toBeInTheDocument()
   })
 
-  it('shows error state when data fetch fails', () => {
+  it('shows error state when customer fetch fails', () => {
     mockUseCustomers.mockReturnValue({
       data: undefined,
       isLoading: false,
@@ -98,5 +98,21 @@ describe('Dashboard', () => {
     renderWithProviders(<Dashboard />)
     expect(screen.getByRole('alert')).toBeInTheDocument()
     expect(screen.getByText('Failed to fetch customers')).toBeInTheDocument()
+  })
+
+  it('shows error state when energy data fetch fails', () => {
+    mockUseCustomers.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+    } as ReturnType<typeof useCustomers>)
+    mockUseGroupedEnergyData.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      error: new Error('Failed to fetch energy data'),
+    } as ReturnType<typeof useGroupedEnergyData>)
+
+    renderWithProviders(<Dashboard />)
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+    expect(screen.getByText('Failed to fetch energy data')).toBeInTheDocument()
   })
 })
