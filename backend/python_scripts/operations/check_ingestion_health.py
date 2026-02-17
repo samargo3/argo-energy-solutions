@@ -14,6 +14,9 @@ _PKG_ROOT = Path(__file__).resolve().parent.parent
 _PROJECT_ROOT = _PKG_ROOT.parent.parent
 load_dotenv(_PROJECT_ROOT / '.env', override=True)
 
+sys.path.insert(0, str(_PKG_ROOT))
+from config.report_config import STALE_CRITICAL_HOURS, STALE_WARNING_HOURS
+
 def check_ingestion_health():
     """Check if data ingestion is healthy."""
     db_url = os.getenv('DATABASE_URL')
@@ -44,12 +47,12 @@ def check_ingestion_health():
     print()
 
     # Alert thresholds
-    if hours_stale > 24:
-        print("🚨 CRITICAL: Data is >24 hours stale!")
+    if hours_stale > STALE_CRITICAL_HOURS:
+        print(f"🚨 CRITICAL: Data is >{STALE_CRITICAL_HOURS} hours stale!")
         print("   Action: Check API credentials and run ingestion")
         sys.exit(2)
-    elif hours_stale > 6:
-        print("⚠️  WARNING: Data is >6 hours stale")
+    elif hours_stale > STALE_WARNING_HOURS:
+        print(f"⚠️  WARNING: Data is >{STALE_WARNING_HOURS} hours stale")
         print("   Action: Investigate ingestion process")
         sys.exit(1)
     else:

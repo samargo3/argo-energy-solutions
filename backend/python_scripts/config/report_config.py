@@ -9,6 +9,31 @@ from datetime import datetime
 from typing import Dict, Any, Optional
 
 
+# ── Data Collection Constants ────────────────────────────────────────
+# These define expected reading counts based on collection intervals.
+
+READINGS_PER_DAY_15MIN = 96       # 24h * 60min / 15min
+READINGS_PER_DAY_HOURLY = 24      # 24h / 1h
+READINGS_PER_WEEK_15MIN = 672     # 7 * 96
+
+# ── Data Validation Limits ───────────────────────────────────────────
+MAX_POWER_KW = 5000
+VOLTAGE_MIN = 50
+VOLTAGE_MAX = 600
+FREQUENCY_MIN_HZ = 55
+FREQUENCY_MAX_HZ = 65
+MAX_THD_CURRENT = 500
+
+# ── HTTP & Retry Defaults ────────────────────────────────────────────
+DEFAULT_API_TIMEOUT = 30          # seconds
+LONG_API_TIMEOUT = 60             # seconds for large data requests
+DEFAULT_RETRY_ATTEMPTS = 3
+
+# ── Ingestion Health Thresholds ──────────────────────────────────────
+STALE_CRITICAL_HOURS = 24
+STALE_WARNING_HOURS = 6
+
+
 # Default configuration
 DEFAULT_CONFIG = {
     # Timezone for report calculations
