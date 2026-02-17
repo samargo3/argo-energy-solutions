@@ -1,0 +1,102 @@
+site_name: Argo Energy Solutions
+site_description: Energy monitoring, analytics, and reporting platform
+repo_url: https://github.com/samargo3/argo-energy-solutions
+
+theme:
+  name: material
+  palette:
+    primary: teal
+    accent: amber
+  features:
+    - navigation.sections
+    - navigation.expand
+    - search.highlight
+
+nav:
+  - Home: index.md
+  - Quick Start: QUICK_START.md
+  - Changelog: CHANGELOG.md
+
+  - Getting Started:
+      - Environment Setup: setup/CREATE_ENV_FILE.md
+      - Environment Troubleshooting: setup/ENV_SETUP_HELP.md
+      - Neon Quickstart: setup/NEON_QUICKSTART.md
+      - Neon Full Setup: setup/NEON_SETUP_GUIDE.md
+      - Daily Sync Setup: setup/DAILY_SYNC_SETUP.md
+      - GitHub Guide: setup/GITHUB_GUIDE.md
+      - Export Setup Checklist: setup/EXPORT_SETUP_CHECKLIST.md
+      - Database Views: setup/LAYERED_VIEWS.md
+      - API Quick Start: setup/QUICK_START_API.md
+
+  - API:
+      - Access Guide: api/API_ACCESS_GUIDE.md
+      - Configuration: api/API_CONFIGURATION.md
+      - Connection Guide: api/API_CONNECTION_GUIDE.md
+      - Endpoints Summary: api/API_ENDPOINTS_SUMMARY.md
+      - Rate Limits: api/API_RATE_LIMITS.md
+
+  - Guides:
+      - Query Guide: guides/QUERY_GUIDE.md
+      - Advanced Analytics: guides/ADVANCED_ANALYTICS_GUIDE.md
+      - Data Export Overview: guides/DATA_EXPORT_OVERVIEW.md
+      - Data Storage Strategy: guides/DATA_STORAGE_STRATEGY.md
+      - Export Features: guides/EXPORT_FEATURE_SUMMARY.md
+      - Historical Ingestion: guides/HISTORICAL_INGESTION_GUIDE.md
+      - Local Database: guides/LOCAL_DATABASE_QUICKSTART.md
+      - Wilson Center Export: guides/WILSON_RAW_EXPORT_QUICKSTART.md
+      - Integrations:
+          - Tableau Quick Start: guides/integrations/TABLEAU_QUICK_START.md
+          - Tableau Integration: guides/integrations/TABLEAU_INTEGRATION_GUIDE.md
+          - Tableau Joining: guides/integrations/TABLEAU_JOINING_GUIDE.md
+          - Tableau Driver Workaround: guides/integrations/TABLEAU_NO_DRIVER_WORKAROUND.md
+          - Neon-Tableau Direct Connect: guides/integrations/NEON_TABLEAU_DIRECT_CONNECT.md
+          - Salesforce Integration: guides/integrations/SALESFORCE_INTEGRATION_GUIDE.md
+      - Reports:
+          - Customer Reports Guide: guides/reports/CUSTOMER_REPORTS_GUIDE.md
+          - Wilson Center Report: guides/reports/WILSON_CENTER_REPORT.md
+          - Wilson Center Report Guide: guides/reports/WILSON_CENTER_REPORT_GUIDE.md
+          - Unit Health Report: guides/reports/UNIT_HEALTH_REPORT_GUIDE.md
+          - Report Improvements: guides/reports/REPORT_IMPROVEMENTS.md
+          - Using Reports with Gemini: guides/reports/GEMINI_REPORT_GUIDE.md
+
+  - Architecture:
+      - Project Organization: architecture/PROJECT_ORGANIZATION.md
+      - Database Schema: architecture/SCHEMA_ANALYSIS.md
+      - Schema Comparison: architecture/SCHEMA_COMPARISON.md
+      - Data Foundation Plan: architecture/DATA_FOUNDATION_PLAN.md
+      - Analytics View Strategy: architecture/VIEW_STRATEGY.md
+      - Governance Alignment: architecture/GOVERNANCE_ALIGNMENT.md
+      - Consultant Recommendations: architecture/CONSULTANT_RECOMMENDATIONS.md
+      - Priority Matrix: architecture/PRIORITY_MATRIX.md
+
+  - Operations:
+      - Current Status: CURRENT_STATUS.md
+      - Next Steps: NEXT_STEPS.md
+      - Quick Reference: QUICK_REFERENCE.md
+      - Observability: OBSERVABILITY.md
+      - Cursor Prompts: cursor-prompts.md
+      - Troubleshooting:
+          - Applied Fixes: troubleshooting/FIXES_APPLIED.md
+          - CORS Errors: troubleshooting/FIX_CORS_ERROR.md
+          - Neon MCP Issues: troubleshooting/NEON_MCP_TROUBLESHOOTING.md
+
+  - Reference:
+      - Project Context: PROJECT_CONTEXT.md
+      - Project Context (Gemini): reference/ARGO_ENERGY_SOLUTIONS_PROJECT_CONTEXT_FOR_GEMINI.md
+      - GitHub & Cursor Setup: reference/GITHUB_AND_CURSOR_SETUP_FOR_GEMINI.md
+      - Neon Database Breakdown: reference/NEON_DATABASE_BREAKDOWN_FOR_GEMINI.md
+
+  - Archive:
+      - Completed Milestones: archive/completed-milestones.md
+      - Python Migration Plan: archive/PYTHON_MIGRATION_PLAN.md
+      - Action Plan (2 Weeks): archive/ACTION_PLAN_NEXT_2_WEEKS.md
+
+markdown_extensions:
+  - toc:
+      permalink: true
+  - admonition
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables

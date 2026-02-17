@@ -97,19 +97,25 @@ argo-energy-solutions/
 
 ## Documentation
 
-Comprehensive documentation is available in the `docs/` directory:
+Comprehensive documentation is available in the `docs/` directory, organized for use with [MkDocs](https://www.mkdocs.org/) (see `mkdocs.yml`):
 
 - **Setup Guides**: `docs/setup/` - Installation and configuration
 - **API Documentation**: `docs/api/` - API endpoints and configuration
-- **Data Guides**: `docs/guides/data/` - Data collection and access
-- **Report Guides**: `docs/guides/reports/` - Report generation
-- **Integration Guides**: `docs/guides/integrations/` - Salesforce, Tableau, etc.
+- **Guides**: `docs/guides/` - Analytics, data export, reports
+- **Integrations**: `docs/guides/integrations/` - Salesforce, Tableau, etc.
+- **Architecture**: `docs/architecture/` - Schema, governance, planning
 - **Troubleshooting**: `docs/troubleshooting/` - Common issues and fixes
 
 Quick reference documents:
 - `docs/CURRENT_STATUS.md` - Current project status
 - `docs/NEXT_STEPS.md` - Planned features and roadmap
 - `docs/QUICK_REFERENCE.md` - Quick command reference
+
+To build the documentation site locally:
+```bash
+pip install mkdocs-material
+mkdocs serve
+```
 
 ### Weekly Analytics Reports
 

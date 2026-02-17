@@ -184,9 +184,9 @@ npm run py:cleanup:dry-run       # Disk usage
 
 ### Documentation
 - **Quick Start:** This file
-- **Full Organization:** [PROJECT_ORGANIZATION.md](PROJECT_ORGANIZATION.md)
-- **Tableau:** [TABLEAU_QUICK_START.md](TABLEAU_QUICK_START.md)
-- **GitHub:** [GITHUB_GUIDE.md](GITHUB_GUIDE.md)
+- **Full Organization:** [PROJECT_ORGANIZATION.md](docs/architecture/PROJECT_ORGANIZATION.md)
+- **Tableau:** [TABLEAU_QUICK_START.md](docs/guides/integrations/TABLEAU_QUICK_START.md)
+- **GitHub:** [GITHUB_GUIDE.md](docs/setup/GITHUB_GUIDE.md)
 
 ### Common Issues
 
