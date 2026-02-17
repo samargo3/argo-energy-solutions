@@ -120,7 +120,7 @@ export const groupByPeriod = (
       case 'week':
         const weekStart = new Date(date);
         weekStart.setUTCDate(date.getUTCDate() - date.getUTCDay());
-        key = `${weekStart.getUTCFullYear()}-W${Math.ceil(weekStart.getUTCDate() / 7)}`;
+        key = `W-${weekStart.getUTCFullYear()}-${String(weekStart.getUTCMonth() + 1).padStart(2, '0')}-${String(weekStart.getUTCDate()).padStart(2, '0')}`;
         break;
       case 'month':
         key = `${date.getUTCFullYear()}-${date.getUTCMonth()}`;

@@ -18,12 +18,14 @@ READINGS_PER_WEEK_15MIN = 672     # 7 * 96
 READINGS_PER_WEEK_HOURLY = 168    # 7 * 24
 
 # ── Data Validation Limits ───────────────────────────────────────────
-MAX_POWER_KW = 5000
-VOLTAGE_MIN = 50
-VOLTAGE_MAX = 600
-FREQUENCY_MIN_HZ = 55
-FREQUENCY_MAX_HZ = 65
-MAX_THD_CURRENT = 500
+# Bounds used by ingestion and report pipelines to flag out-of-range readings.
+# Derived from typical US commercial building electrical service specs.
+MAX_POWER_KW = 5000               # kW – upper cap for a single meter/site
+VOLTAGE_MIN = 50                  # V  – low-side guard (covers 120/208/277/480 V services)
+VOLTAGE_MAX = 600                 # V  – high-side guard
+FREQUENCY_MIN_HZ = 55             # Hz – minimum acceptable grid frequency
+FREQUENCY_MAX_HZ = 65             # Hz – maximum acceptable grid frequency
+MAX_THD_CURRENT = 500             # %  – total harmonic distortion of current (IEEE 519 outlier cap)
 
 # ── HTTP & Retry Defaults ────────────────────────────────────────────
 DEFAULT_API_TIMEOUT = 30          # seconds
