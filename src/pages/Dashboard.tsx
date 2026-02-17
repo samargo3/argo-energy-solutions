@@ -11,8 +11,8 @@ export default function Dashboard() {
   const [dateRange, setDateRange] = useState(getDateRange('month'))
   const [selectedCustomer, setSelectedCustomer] = useState<string | null>(null)
   
-  const { data: customersData, isLoading: customersLoading } = useCustomers()
-  const { data: energyData, isLoading: energyLoading } = useGroupedEnergyData(
+  const { data: customersData, isLoading: customersLoading, error: customersError } = useCustomers()
+  const { data: energyData, isLoading: energyLoading, error: energyError } = useGroupedEnergyData(
     selectedCustomer || customersData?.items[0]?.id || '',
     { ...dateRange, groupBy: 'day' }
   )
@@ -67,7 +67,11 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {energyLoading ? (
+        {(customersError || energyError) && !customersData && !energyData ? (
+          <div className="error" role="alert">
+            {(customersError as Error)?.message || (energyError as Error)?.message || 'An error occurred loading data'}
+          </div>
+        ) : energyLoading ? (
           <div className="loading">Loading energy data...</div>
         ) : (
           <>

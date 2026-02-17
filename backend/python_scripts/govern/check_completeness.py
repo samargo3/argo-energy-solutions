@@ -32,6 +32,9 @@ _PKG_ROOT = Path(__file__).resolve().parent.parent
 _PROJECT_ROOT = _PKG_ROOT.parent.parent
 load_dotenv(_PROJECT_ROOT / '.env', override=True)
 
+sys.path.insert(0, str(_PKG_ROOT))
+from config.report_config import READINGS_PER_DAY_HOURLY
+
 # Wilson Center WCDS channels (hardware installed 2025-04-29)
 WCDS_CHANNELS = {
     162119: 'RTU-2_WCDS_Wilson Ctr',
@@ -45,7 +48,7 @@ WCDS_CHANNELS = {
 }
 
 INSTALL_DATE = date(2025, 4, 29)
-EXPECTED_READINGS_PER_DAY = 24  # hourly resolution
+EXPECTED_READINGS_PER_DAY = READINGS_PER_DAY_HOURLY
 
 
 def connect() -> psycopg2.extensions.connection:

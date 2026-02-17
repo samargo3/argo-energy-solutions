@@ -255,7 +255,23 @@ eniscope_proxy = EniscopeProxy()
 app = FastAPI(
     title="Argo Energy API",
     version="0.2.0",
-    description="Unified API — data, Eniscope proxy, and auth for the React dashboard.",
+    description=(
+        "Unified API for the Argo Energy dashboard. Provides energy data, "
+        "analytics (forecasting, cost optimization, electrical health), "
+        "Eniscope device proxy, and report generation.\n\n"
+        "**Authentication:** All `/api/*` routes require a Bearer token obtained "
+        "from `POST /api/auth/login`, or an `X-API-Key` header for server-to-server access.\n\n"
+        "**Data governance:** All data queries go through Layer 3 Business Views, "
+        "never raw tables."
+    ),
+    openapi_tags=[
+        {"name": "Health", "description": "Service health checks"},
+        {"name": "Auth", "description": "Authentication and token management"},
+        {"name": "Energy Data", "description": "Readings, aggregations, and statistics from PostgreSQL views"},
+        {"name": "Analytics", "description": "Forecasting, cost optimization, and electrical health analysis"},
+        {"name": "Eniscope Proxy", "description": "Proxy endpoints for the Eniscope hardware API"},
+        {"name": "Reports", "description": "Weekly briefs, data quality, and electrical health reports"},
+    ],
 )
 
 app.add_middleware(
@@ -310,22 +326,28 @@ def _serialize_row(row: Dict) -> Dict:
 # ---------------------------------------------------------------------------
 # Public routes
 # ---------------------------------------------------------------------------
-@app.get("/")
+@app.get("/", tags=["Health"])
 def root():
+    """Root endpoint returning service identity and version."""
     return {"status": "ok", "service": "Argo Energy API", "version": "0.2.0"}
 
 
-@app.get("/health")
+@app.get("/health", tags=["Health"])
 def health():
+    """Health check returning current server timestamp. No auth required."""
     return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
 
 
 # ---------------------------------------------------------------------------
 # Auth routes
 # ---------------------------------------------------------------------------
-@app.post("/api/auth/login")
+@app.post("/api/auth/login", tags=["Auth"])
 def login(body: LoginRequest):
-    """Validate the shared APP_PASSWORD and return a bearer token."""
+    """Authenticate with the shared password and receive a 24-hour Bearer token.
+
+    In development mode (no `APP_PASSWORD` set), any password is accepted.
+    Include the returned token as `Authorization: Bearer <token>` on subsequent requests.
+    """
     if not APP_PASSWORD:
         # Dev mode — no password required, issue token anyway
         return {"token": _create_token()}
@@ -342,14 +364,17 @@ def login(body: LoginRequest):
 # Argo Governance: The API server is part of Stage 4 (Deliver).  It must
 # consume data from the governed view layer, never from raw tables.
 # ---------------------------------------------------------------------------
-@app.get("/api/energy/history", dependencies=[Depends(require_auth)])
+@app.get("/api/energy/history", dependencies=[Depends(require_auth)], tags=["Energy Data"])
 def energy_history(
     start_date: Optional[str] = Query("2025-11-05", description="Start date (YYYY-MM-DD)"),
     end_date: Optional[str] = Query("2026-02-05", description="End date (YYYY-MM-DD)"),
 ):
     """Hourly-aggregated energy data for the entire site.
 
-    Source: ``v_readings_enriched`` (Layer 3 Business View).
+    Returns `energy_kwh` and `avg_power_kw` per hour across all channels.
+    Results are capped at 5,000 rows.
+
+    **Source:** `v_readings_enriched` (Layer 3 Business View).
     """
     try:
         with get_cursor() as cur:
@@ -391,11 +416,14 @@ def energy_history(
     }
 
 
-@app.get("/api/channels", dependencies=[Depends(require_auth)])
+@app.get("/api/channels", dependencies=[Depends(require_auth)], tags=["Energy Data"])
 def get_channels(organizationId: Optional[int] = None):
-    """List channels, optionally filtered by organization.
+    """List all metering channels, optionally filtered by organization/site ID.
 
-    Source: ``v_meters`` (Layer 3 Business View).
+    Each channel represents a physical meter or sub-meter.
+    Returns channel ID, name, type, device info, and parent organization.
+
+    **Source:** `v_meters` (Layer 3 Business View).
     """
     try:
         with get_cursor() as cur:
@@ -434,16 +462,19 @@ def get_channels(organizationId: Optional[int] = None):
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
-@app.get("/api/channels/{channel_id}/readings", dependencies=[Depends(require_auth)])
+@app.get("/api/channels/{channel_id}/readings", dependencies=[Depends(require_auth)], tags=["Energy Data"])
 def get_channel_readings(
     channel_id: int,
     startDate: str = Query(..., description="Start date YYYY-MM-DD"),
     endDate: str = Query(..., description="End date YYYY-MM-DD"),
-    limit: Optional[int] = None,
+    limit: Optional[int] = Query(None, description="Max rows to return"),
 ):
-    """Clean readings for a channel within a date range.
+    """Raw cleaned readings for a single channel within a date range.
 
-    Source: ``v_readings_enriched`` (Layer 3 Business View).
+    Returns timestamp, energy_kwh, power_kw, voltage_v, current_a, and power_factor.
+    Data is ordered by timestamp ascending. Use `limit` to cap the result set.
+
+    **Source:** `v_readings_enriched` (Layer 3 Business View).
     """
     try:
         with get_cursor() as cur:
@@ -466,16 +497,19 @@ def get_channel_readings(
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
-@app.get("/api/channels/{channel_id}/readings/aggregated", dependencies=[Depends(require_auth)])
+@app.get("/api/channels/{channel_id}/readings/aggregated", dependencies=[Depends(require_auth)], tags=["Energy Data"])
 def get_aggregated_readings(
     channel_id: int,
-    startDate: str = Query(...),
-    endDate: str = Query(...),
-    resolution: str = Query("hour", pattern="^(hour|day|week|month)$"),
+    startDate: str = Query(..., description="Start date YYYY-MM-DD"),
+    endDate: str = Query(..., description="End date YYYY-MM-DD"),
+    resolution: str = Query("hour", pattern="^(hour|day|week|month)$", description="Aggregation bucket: hour, day, week, or month"),
 ):
-    """Aggregated readings at the requested resolution.
+    """Aggregated readings at the requested time resolution.
 
-    Source: ``v_readings_enriched`` (Layer 3 Business View).
+    Buckets readings by `resolution` and returns total energy, average/peak/min power,
+    average voltage, and reading count per bucket. Capped at 5,000 rows.
+
+    **Source:** `v_readings_enriched` (Layer 3 Business View).
     """
     trunc_map = {"hour": "hour", "day": "day", "week": "week", "month": "month"}
     trunc = trunc_map[resolution]
@@ -507,15 +541,18 @@ def get_aggregated_readings(
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
-@app.get("/api/channels/{channel_id}/statistics", dependencies=[Depends(require_auth)])
+@app.get("/api/channels/{channel_id}/statistics", dependencies=[Depends(require_auth)], tags=["Energy Data"])
 def get_channel_statistics(
     channel_id: int,
-    startDate: str = Query(...),
-    endDate: str = Query(...),
+    startDate: str = Query(..., description="Start date YYYY-MM-DD"),
+    endDate: str = Query(..., description="End date YYYY-MM-DD"),
 ):
-    """Energy statistics for a channel in a date range.
+    """Summary statistics for a channel over a date range.
 
-    Source: ``v_readings_enriched`` (Layer 3 Business View).
+    Returns total energy, average/peak/min power, average voltage, reading count,
+    and the timestamps of peak and minimum power readings.
+
+    **Source:** `v_readings_enriched` (Layer 3 Business View).
     """
     try:
         with get_cursor() as cur:
@@ -576,11 +613,14 @@ def get_channel_statistics(
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
-@app.get("/api/channels/{channel_id}/readings/latest", dependencies=[Depends(require_auth)])
+@app.get("/api/channels/{channel_id}/readings/latest", dependencies=[Depends(require_auth)], tags=["Energy Data"])
 def get_latest_reading(channel_id: int):
     """Most recent reading for a channel.
 
-    Source: ``v_latest_readings`` (Layer 3 Business View).
+    Returns the single latest data point with energy, power, voltage, current,
+    and power factor. Useful for real-time dashboards and staleness checks.
+
+    **Source:** `v_latest_readings` (Layer 3 Business View).
     """
     try:
         with get_cursor() as cur:
@@ -599,11 +639,14 @@ def get_latest_reading(channel_id: int):
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
-@app.get("/api/channels/{channel_id}/range", dependencies=[Depends(require_auth)])
+@app.get("/api/channels/{channel_id}/range", dependencies=[Depends(require_auth)], tags=["Energy Data"])
 def get_channel_range(channel_id: int):
-    """Data availability range (earliest / latest timestamp).
+    """Data availability range for a channel.
 
-    Source: ``v_readings_enriched`` (Layer 3 Business View).
+    Returns the earliest and latest timestamps and total reading count.
+    Useful for determining valid date ranges before querying readings.
+
+    **Source:** `v_readings_enriched` (Layer 3 Business View).
     """
     try:
         with get_cursor() as cur:
@@ -624,15 +667,18 @@ def get_channel_range(channel_id: int):
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
-@app.get("/api/organizations/{organization_id}/summary", dependencies=[Depends(require_auth)])
+@app.get("/api/organizations/{organization_id}/summary", dependencies=[Depends(require_auth)], tags=["Energy Data"])
 def get_organization_summary(
     organization_id: int,
-    startDate: str = Query(...),
-    endDate: str = Query(...),
+    startDate: str = Query(..., description="Start date YYYY-MM-DD"),
+    endDate: str = Query(..., description="End date YYYY-MM-DD"),
 ):
-    """Organization-level energy summary.
+    """Organization-level energy summary across all channels.
 
-    Source: ``v_readings_enriched`` (Layer 3 Business View).
+    Aggregates across every channel in the organization and returns total energy,
+    average/peak power, channel count, and total readings for the period.
+
+    **Source:** `v_readings_enriched` (Layer 3 Business View).
     """
     try:
         with get_cursor() as cur:
@@ -660,13 +706,18 @@ def get_organization_summary(
 # ---------------------------------------------------------------------------
 # Analytics routes
 # ---------------------------------------------------------------------------
-@app.get("/api/analytics/forecast/{site_id}", dependencies=[Depends(require_auth)])
+@app.get("/api/analytics/forecast/{site_id}", dependencies=[Depends(require_auth)], tags=["Analytics"])
 def analytics_forecast(
     site_id: int,
     horizon: int = Query(7, description="Forecast horizon in days (7 or 30)"),
     lookback: int = Query(90, description="Days of history to train on"),
 ):
-    """Generate a Prophet-based energy usage forecast for a site."""
+    """Generate a Prophet-based energy usage forecast for a site.
+
+    Trains on `lookback` days of hourly data and predicts `horizon` days forward.
+    Requires at least 48 hourly data points (2 days). Returns hourly predictions
+    with upper/lower confidence bounds (80% interval).
+    """
     if horizon not in (7, 30):
         raise HTTPException(status_code=400, detail="horizon must be 7 or 30")
 
@@ -686,13 +737,17 @@ def analytics_forecast(
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
-@app.get("/api/analytics/cost-optimization/{site_id}", dependencies=[Depends(require_auth)])
+@app.get("/api/analytics/cost-optimization/{site_id}", dependencies=[Depends(require_auth)], tags=["Analytics"])
 def analytics_cost_optimization(
     site_id: int,
     days: int = Query(30, description="Number of days to analyze"),
     flat_rate: float = Query(0.12, description="Current flat rate $/kWh"),
 ):
-    """Full cost optimization report: TOU analysis + demand charge analysis."""
+    """Combined cost optimization report: Time-of-Use analysis and demand charge analysis.
+
+    Compares the current flat rate against a TOU schedule and estimates savings
+    from peak demand shaving. Returns monthly and annual savings potential.
+    """
     from analyze.cost_model import generate_cost_optimization_report
 
     try:
@@ -709,13 +764,17 @@ def analytics_cost_optimization(
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
-@app.get("/api/analytics/tou/{site_id}", dependencies=[Depends(require_auth)])
+@app.get("/api/analytics/tou/{site_id}", dependencies=[Depends(require_auth)], tags=["Analytics"])
 def analytics_tou(
     site_id: int,
     days: int = Query(30, description="Number of days to analyze"),
     flat_rate: float = Query(0.12, description="Current flat rate $/kWh"),
 ):
-    """Time-of-Use rate analysis only."""
+    """Time-of-Use rate analysis for a site.
+
+    Breaks down energy consumption by on-peak, mid-peak, and off-peak periods.
+    Compares flat-rate cost against TOU pricing to estimate potential savings.
+    """
     from analyze.cost_model import analyze_tou_costs
 
     try:
@@ -732,12 +791,16 @@ def analytics_tou(
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
-@app.get("/api/analytics/demand/{site_id}", dependencies=[Depends(require_auth)])
+@app.get("/api/analytics/demand/{site_id}", dependencies=[Depends(require_auth)], tags=["Analytics"])
 def analytics_demand(
     site_id: int,
     days: int = Query(30, description="Number of days to analyze"),
 ):
-    """Peak demand charge analysis only."""
+    """Peak demand charge analysis for a site.
+
+    Identifies peak demand events and models demand shaving scenarios
+    (5%, 10%, 15%, 20% reduction) with estimated monthly cost savings.
+    """
     from analyze.cost_model import analyze_demand_charges
 
     try:
@@ -756,12 +819,17 @@ def analytics_demand(
 # ---------------------------------------------------------------------------
 # Eniscope API proxy routes
 # ---------------------------------------------------------------------------
-@app.get("/api/eniscope/readings/{channel_id}", dependencies=[Depends(require_auth)])
+@app.get("/api/eniscope/readings/{channel_id}", dependencies=[Depends(require_auth)], tags=["Eniscope Proxy"])
 async def eniscope_readings(
     channel_id: str,
     request: Request,
 ):
-    """Proxy Eniscope readings API."""
+    """Proxy live readings from the Eniscope hardware API for a channel.
+
+    Forwards query parameters (res, daterange, fields, action) to Eniscope.
+    Default resolution is 3600s (hourly), default fields are E, P, V, I, PF.
+    Returns raw Eniscope response records.
+    """
     query = dict(request.query_params)
 
     params: Dict[str, Any] = {
@@ -799,15 +867,19 @@ async def eniscope_readings(
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
-@app.get("/api/eniscope/channels", dependencies=[Depends(require_auth)])
+@app.get("/api/eniscope/channels", dependencies=[Depends(require_auth)], tags=["Eniscope Proxy"])
 async def eniscope_channels(
-    organization: Optional[str] = None,
-    deviceId: Optional[str] = None,
-    name: Optional[str] = None,
-    page: Optional[int] = None,
-    limit: Optional[int] = None,
+    organization: Optional[str] = Query(None, description="Filter by Eniscope organization ID"),
+    deviceId: Optional[str] = Query(None, description="Filter by device ID"),
+    name: Optional[str] = Query(None, description="Filter by channel name"),
+    page: Optional[int] = Query(None, description="Page number for pagination"),
+    limit: Optional[int] = Query(None, description="Results per page"),
 ):
-    """Proxy Eniscope channels API."""
+    """List channels from the Eniscope hardware API.
+
+    Proxies the Eniscope `/v1/1/channels` endpoint. Supports filtering by
+    organization, device, or name and basic pagination.
+    """
     params: Dict[str, Any] = {}
     if organization:
         params["organization"] = organization
@@ -827,16 +899,20 @@ async def eniscope_channels(
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
-@app.get("/api/eniscope/devices", dependencies=[Depends(require_auth)])
+@app.get("/api/eniscope/devices", dependencies=[Depends(require_auth)], tags=["Eniscope Proxy"])
 async def eniscope_devices(
-    organization: Optional[str] = None,
-    uuid: Optional[str] = None,
-    deviceType: Optional[str] = None,
-    name: Optional[str] = None,
-    page: Optional[int] = None,
-    limit: Optional[int] = None,
+    organization: Optional[str] = Query(None, description="Filter by organization ID"),
+    uuid: Optional[str] = Query(None, description="Filter by device UUID"),
+    deviceType: Optional[str] = Query(None, description="Filter by device type"),
+    name: Optional[str] = Query(None, description="Filter by device name"),
+    page: Optional[int] = Query(None, description="Page number"),
+    limit: Optional[int] = Query(None, description="Results per page"),
 ):
-    """Proxy Eniscope devices API."""
+    """List devices from the Eniscope hardware API.
+
+    Proxies the Eniscope `/v1/1/devices` endpoint. Each device contains
+    one or more metering channels.
+    """
     params: Dict[str, Any] = {}
     if organization:
         params["organization"] = organization
@@ -874,9 +950,13 @@ def _find_reports(site_id: str, pattern: str) -> List[Path]:
     return matches
 
 
-@app.get("/api/reports/weekly/{site_id}/latest", dependencies=[Depends(require_auth)])
+@app.get("/api/reports/weekly/{site_id}/latest", dependencies=[Depends(require_auth)], tags=["Reports"])
 async def get_latest_weekly_report(site_id: str):
-    """Return the most recent weekly brief JSON for a site."""
+    """Return the most recent weekly brief JSON for a site.
+
+    Reads the newest `weekly-brief-{site_id}-*.json` file from the reports directory.
+    Returns 404 if no reports exist for the site.
+    """
     reports = _find_reports(site_id, "weekly-brief")
     if not reports:
         raise HTTPException(status_code=404, detail=f"No weekly reports found for site {site_id}")
@@ -887,9 +967,13 @@ async def get_latest_weekly_report(site_id: str):
         raise HTTPException(status_code=500, detail="Failed to read report") from exc
 
 
-@app.get("/api/reports/weekly/{site_id}", dependencies=[Depends(require_auth)])
-async def list_weekly_reports(site_id: str, limit: int = Query(10, ge=1, le=100)):
-    """List available weekly brief reports for a site."""
+@app.get("/api/reports/weekly/{site_id}", dependencies=[Depends(require_auth)], tags=["Reports"])
+async def list_weekly_reports(site_id: str, limit: int = Query(10, ge=1, le=100, description="Max reports to return")):
+    """List available weekly brief reports for a site.
+
+    Returns filename, generation timestamp, and file size for each report,
+    sorted newest first. Use `limit` to cap the list.
+    """
     reports = _find_reports(site_id, "weekly-brief")
     return [
         {
@@ -901,9 +985,12 @@ async def list_weekly_reports(site_id: str, limit: int = Query(10, ge=1, le=100)
     ]
 
 
-@app.get("/api/reports/weekly/{site_id}/{filename}", dependencies=[Depends(require_auth)])
+@app.get("/api/reports/weekly/{site_id}/{filename}", dependencies=[Depends(require_auth)], tags=["Reports"])
 async def get_weekly_report_by_name(site_id: str, filename: str):
-    """Return a specific weekly report by filename."""
+    """Retrieve a specific weekly report by its filename.
+
+    The filename must belong to the given site. Path traversal is blocked.
+    """
     # Prevent path traversal
     if ".." in filename or "/" in filename:
         raise HTTPException(status_code=400, detail="Invalid filename")
@@ -917,9 +1004,14 @@ async def get_weekly_report_by_name(site_id: str, filename: str):
         raise HTTPException(status_code=500, detail="Failed to read report") from exc
 
 
-@app.get("/api/reports/data-quality/{site_id}", dependencies=[Depends(require_auth)])
+@app.get("/api/reports/data-quality/{site_id}", dependencies=[Depends(require_auth)], tags=["Reports"])
 async def get_data_quality_summary(site_id: str):
-    """Return current data quality metrics for a site."""
+    """Live data quality summary for a site.
+
+    Returns per-channel completeness (% of expected hourly readings in the last 7 days),
+    hours since last reading, total readings, and an average completeness score.
+    Channels with fewer than 100 total readings are excluded.
+    """
     with get_connection() as conn:
         cur = conn.cursor(cursor_factory=RealDictCursor)
 
@@ -969,14 +1061,19 @@ async def get_data_quality_summary(site_id: str):
 
 # ── Electrical Health Screening ──────────────────────────────────────
 
-@app.get("/api/reports/electrical-health/{site_id}", dependencies=[Depends(require_auth)])
+@app.get("/api/reports/electrical-health/{site_id}", dependencies=[Depends(require_auth)], tags=["Reports"])
 async def generate_electrical_health_pdf(
     site_id: str,
     start_date: str = Query(None, description="Start date YYYY-MM-DD (default: 30 days ago)"),
     end_date: str = Query(None, description="End date YYYY-MM-DD (default: today)"),
-    nominal_voltage: Optional[int] = Query(None, description="Nominal voltage (120/208/277/480)"),
+    nominal_voltage: Optional[int] = Query(None, description="Nominal voltage (120/208/277/480). Auto-detected if omitted."),
 ):
-    """Generate and return Electrical Health Screening PDF for a site."""
+    """Generate and download an Electrical Health Screening PDF for a site.
+
+    Analyzes voltage stability, peak current events, frequency excursions,
+    neutral current, and current THD. Returns a downloadable PDF file.
+    Defaults to the last 30 days if no date range is specified.
+    """
     if not end_date:
         end_date = datetime.now().strftime('%Y-%m-%d')
     if not start_date:
@@ -1014,14 +1111,19 @@ async def generate_electrical_health_pdf(
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
-@app.get("/api/analytics/electrical-health/{site_id}", dependencies=[Depends(require_auth)])
+@app.get("/api/analytics/electrical-health/{site_id}", dependencies=[Depends(require_auth)], tags=["Analytics"])
 async def analytics_electrical_health(
     site_id: str,
-    start_date: str = Query(None, description="Start date YYYY-MM-DD"),
-    end_date: str = Query(None, description="End date YYYY-MM-DD"),
-    nominal_voltage: Optional[int] = Query(None, description="Nominal voltage"),
+    start_date: str = Query(None, description="Start date YYYY-MM-DD (default: 30 days ago)"),
+    end_date: str = Query(None, description="End date YYYY-MM-DD (default: today)"),
+    nominal_voltage: Optional[int] = Query(None, description="Nominal voltage (120/208/277/480). Auto-detected if omitted."),
 ):
-    """Return electrical health analytics as JSON (no PDF generation)."""
+    """Electrical health analytics as JSON (no PDF).
+
+    Same analysis as the PDF report but returned as structured JSON.
+    Includes voltage stability, peak current, frequency, neutral current,
+    THD metrics, and an overall health score.
+    """
     if not end_date:
         end_date = datetime.now().strftime('%Y-%m-%d')
     if not start_date:

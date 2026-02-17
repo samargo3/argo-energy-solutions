@@ -270,8 +270,8 @@ def calculate_avg_completeness(channels_data: List[Dict[str, Any]]) -> float:
     if not channels_data:
         return 0.0
     
-    # Simplified: assume 672 readings per week (7 days * 96 intervals/day)
-    expected = 672
+    from config.report_config import READINGS_PER_WEEK_HOURLY
+    expected = READINGS_PER_WEEK_HOURLY
     total_completeness = 0.0
     
     for channel in channels_data:

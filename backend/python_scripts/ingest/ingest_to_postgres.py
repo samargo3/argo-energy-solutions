@@ -37,6 +37,11 @@ if str(_PKG_ROOT) not in sys.path:
 
 from lib.logging_config import configure_logging, get_logger
 from lib.sentry_client import init_sentry, capture_exception
+from config.report_config import (
+    MAX_POWER_KW, VOLTAGE_MIN, VOLTAGE_MAX,
+    FREQUENCY_MIN_HZ, FREQUENCY_MAX_HZ, MAX_THD_CURRENT,
+    DEFAULT_API_TIMEOUT, DEFAULT_RETRY_ATTEMPTS,
+)
 # override=False: .env fills in missing vars but won't clobber env vars
 # already set by the OS / GitHub Actions secrets.
 load_dotenv(_PROJECT_ROOT / '.env', override=False)
@@ -157,7 +162,7 @@ class EniscopeClient:
         response = requests.get(
             f'{self.base_url}/organizations',
             headers=self._headers,
-            timeout=30,
+            timeout=DEFAULT_API_TIMEOUT,
         )
         response.raise_for_status()
         
@@ -166,7 +171,7 @@ class EniscopeClient:
         
         return self.cached_organizations
     
-    def _make_request_with_retry(self, url: str, params: Dict = None, retries: int = 3) -> requests.Response:
+    def _make_request_with_retry(self, url: str, params: Dict = None, retries: int = DEFAULT_RETRY_ATTEMPTS) -> requests.Response:
         """Make request with Basic Auth header and exponential backoff.
         
         Use this for endpoints where requests-style param encoding is fine
@@ -178,7 +183,7 @@ class EniscopeClient:
                     url,
                     params=params or {},
                     headers=self._headers,
-                    timeout=30,
+                    timeout=DEFAULT_API_TIMEOUT,
                 )
                 response.raise_for_status()
                 return response
@@ -196,7 +201,7 @@ class EniscopeClient:
         
         raise Exception(f"Failed after {retries} retries")
     
-    def _make_raw_request_with_retry(self, full_url: str, retries: int = 3) -> requests.Response:
+    def _make_raw_request_with_retry(self, full_url: str, retries: int = DEFAULT_RETRY_ATTEMPTS) -> requests.Response:
         """Make request using a pre-built URL (no param encoding by requests).
         
         The Eniscope /readings endpoint requires bracket-style array params
@@ -208,7 +213,7 @@ class EniscopeClient:
                 response = requests.get(
                     full_url,
                     headers=self._headers,
-                    timeout=30,
+                    timeout=DEFAULT_API_TIMEOUT,
                 )
                 response.raise_for_status()
                 return response
@@ -482,18 +487,18 @@ class PostgresDB:
             return f"negative_energy={energy}"
         if power is not None and power < 0:
             return f"negative_power={power}"
-        if power is not None and power > 5000:
+        if power is not None and power > MAX_POWER_KW:
             return f"extreme_power={power}"
-        if voltage is not None and (voltage < 50 or voltage > 600):
+        if voltage is not None and (voltage < VOLTAGE_MIN or voltage > VOLTAGE_MAX):
             return f"voltage_out_of_range={voltage}"
         if pf is not None and (pf < -1 or pf > 1):
             return f"power_factor_invalid={pf}"
         # Electrical health field validation
         freq = r.get('frequency_hz')
-        if freq is not None and (freq < 55 or freq > 65):
+        if freq is not None and (freq < FREQUENCY_MIN_HZ or freq > FREQUENCY_MAX_HZ):
             return f"frequency_out_of_range={freq}"
         thd_i = r.get('thd_current')
-        if thd_i is not None and (thd_i < 0 or thd_i > 500):
+        if thd_i is not None and (thd_i < 0 or thd_i > MAX_THD_CURRENT):
             return f"thd_current_invalid={thd_i}"
         neutral = r.get('neutral_current_a')
         if neutral is not None and neutral < 0:
@@ -501,7 +506,7 @@ class PostgresDB:
         # Phase voltage validation (same range as system voltage)
         for phase_v in ('voltage_v1', 'voltage_v2', 'voltage_v3'):
             pv = r.get(phase_v)
-            if pv is not None and (pv < 50 or pv > 600):
+            if pv is not None and (pv < VOLTAGE_MIN or pv > VOLTAGE_MAX):
                 return f"{phase_v}_out_of_range={pv}"
         # Phase power factor validation
         for phase_pf in ('power_factor_1', 'power_factor_2', 'power_factor_3'):

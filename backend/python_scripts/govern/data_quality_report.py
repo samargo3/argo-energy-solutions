@@ -14,6 +14,9 @@ _PKG_ROOT = Path(__file__).resolve().parent.parent
 _PROJECT_ROOT = _PKG_ROOT.parent.parent
 load_dotenv(_PROJECT_ROOT / '.env', override=True)
 
+sys.path.insert(0, str(_PKG_ROOT))
+from config.report_config import READINGS_PER_DAY_15MIN
+
 def generate_quality_report(days=7):
     """Generate data quality report for last N days."""
     db_url = os.getenv('DATABASE_URL')
@@ -31,8 +34,8 @@ def generate_quality_report(days=7):
                 c.channel_id,
                 c.channel_name,
                 COUNT(r.timestamp) as actual_readings,
-                %s * 96 as expected_readings,  -- 96 readings/day at 15-min intervals
-                ROUND(COUNT(r.timestamp)::numeric / (%s * 96) * 100, 1) as completeness_pct
+                %s * %s as expected_readings,
+                ROUND(COUNT(r.timestamp)::numeric / (%s * %s) * 100, 1) as completeness_pct
             FROM channels c
             LEFT JOIN readings r ON c.channel_id = r.channel_id
                 AND r.timestamp >= CURRENT_DATE - INTERVAL '%s days'
@@ -40,7 +43,7 @@ def generate_quality_report(days=7):
         )
         SELECT * FROM channel_stats
         ORDER BY completeness_pct ASC
-    """, (days, days, days))
+    """, (days, READINGS_PER_DAY_15MIN, days, READINGS_PER_DAY_15MIN, days))
 
     print("1. CHANNEL COMPLETENESS")
     print("-" * 80)

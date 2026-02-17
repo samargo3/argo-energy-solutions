@@ -112,18 +112,18 @@ export const groupByPeriod = (
 
     switch (period) {
       case 'hour':
-        key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}-${date.getHours()}`;
+        key = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}-${String(date.getUTCHours()).padStart(2, '0')}`;
         break;
       case 'day':
-        key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+        key = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
         break;
       case 'week':
         const weekStart = new Date(date);
-        weekStart.setDate(date.getDate() - date.getDay());
-        key = `${weekStart.getFullYear()}-W${Math.ceil(weekStart.getDate() / 7)}`;
+        weekStart.setUTCDate(date.getUTCDate() - date.getUTCDay());
+        key = `W-${weekStart.getUTCFullYear()}-${String(weekStart.getUTCMonth() + 1).padStart(2, '0')}-${String(weekStart.getUTCDate()).padStart(2, '0')}`;
         break;
       case 'month':
-        key = `${date.getFullYear()}-${date.getMonth()}`;
+        key = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
         break;
       default:
         key = date.toISOString().split('T')[0];
