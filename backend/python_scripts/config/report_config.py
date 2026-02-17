@@ -15,6 +15,7 @@ from typing import Dict, Any, Optional
 READINGS_PER_DAY_15MIN = 96       # 24h * 60min / 15min
 READINGS_PER_DAY_HOURLY = 24      # 24h / 1h
 READINGS_PER_WEEK_15MIN = 672     # 7 * 96
+READINGS_PER_WEEK_HOURLY = 168    # 7 * 24
 
 # ── Data Validation Limits ───────────────────────────────────────────
 MAX_POWER_KW = 5000

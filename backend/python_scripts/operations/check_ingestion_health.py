@@ -24,43 +24,41 @@ def check_ingestion_health():
         print("❌ DATABASE_URL not configured")
         sys.exit(1)
 
-    conn = psycopg2.connect(db_url)
-    cur = conn.cursor()
+    exit_code = 0
+    with psycopg2.connect(db_url) as conn:
+        with conn.cursor() as cur:
+            # Check last reading timestamp
+            cur.execute("SELECT MAX(timestamp) FROM readings")
+            last_reading = cur.fetchone()[0]
 
-    # Check last reading timestamp
-    cur.execute("SELECT MAX(timestamp) FROM readings")
-    last_reading = cur.fetchone()[0]
+            if not last_reading:
+                print("❌ No readings found in database")
+                sys.exit(1)
 
-    if not last_reading:
-        print("❌ No readings found in database")
-        sys.exit(1)
+            # Check how stale the data is
+            now = datetime.now(last_reading.tzinfo)
+            hours_stale = (now - last_reading).total_seconds() / 3600
 
-    # Check how stale the data is
-    now = datetime.now(last_reading.tzinfo)
-    hours_stale = (now - last_reading).total_seconds() / 3600
+            print("🔍 INGESTION HEALTH CHECK")
+            print("=" * 60)
+            print(f"Last Reading:  {last_reading}")
+            print(f"Current Time:  {now}")
+            print(f"Hours Stale:   {hours_stale:.1f} hours")
+            print()
 
-    print("🔍 INGESTION HEALTH CHECK")
-    print("=" * 60)
-    print(f"Last Reading:  {last_reading}")
-    print(f"Current Time:  {now}")
-    print(f"Hours Stale:   {hours_stale:.1f} hours")
-    print()
+            # Alert thresholds
+            if hours_stale > STALE_CRITICAL_HOURS:
+                print(f"🚨 CRITICAL: Data is >{STALE_CRITICAL_HOURS} hours stale!")
+                print("   Action: Check API credentials and run ingestion")
+                exit_code = 2
+            elif hours_stale > STALE_WARNING_HOURS:
+                print(f"⚠️  WARNING: Data is >{STALE_WARNING_HOURS} hours stale")
+                print("   Action: Investigate ingestion process")
+                exit_code = 1
+            else:
+                print("✅ HEALTHY: Data is current")
 
-    # Alert thresholds
-    if hours_stale > STALE_CRITICAL_HOURS:
-        print(f"🚨 CRITICAL: Data is >{STALE_CRITICAL_HOURS} hours stale!")
-        print("   Action: Check API credentials and run ingestion")
-        sys.exit(2)
-    elif hours_stale > STALE_WARNING_HOURS:
-        print(f"⚠️  WARNING: Data is >{STALE_WARNING_HOURS} hours stale")
-        print("   Action: Investigate ingestion process")
-        sys.exit(1)
-    else:
-        print("✅ HEALTHY: Data is current")
-        sys.exit(0)
-
-    cur.close()
-    conn.close()
+    sys.exit(exit_code)
 
 if __name__ == "__main__":
     check_ingestion_health()

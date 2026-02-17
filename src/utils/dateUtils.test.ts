@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import {
   formatDateForApi,
   getDateRange,
@@ -15,6 +15,11 @@ describe('formatDateForApi', () => {
 })
 
 describe('getDateRange', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2025-06-15T14:30:00Z'))
+  })
+
   afterEach(() => {
     vi.useRealTimers()
   })
@@ -29,9 +34,9 @@ describe('getDateRange', () => {
   it('today range starts at beginning of day', () => {
     const range = getDateRange('today')
     const start = new Date(range.startDate)
-    expect(start.getHours()).toBe(0)
-    expect(start.getMinutes()).toBe(0)
-    expect(start.getSeconds()).toBe(0)
+    expect(start.getUTCHours()).toBe(0)
+    expect(start.getUTCMinutes()).toBe(0)
+    expect(start.getUTCSeconds()).toBe(0)
   })
 
   it('uses custom dates when period is custom', () => {
@@ -63,10 +68,11 @@ describe('formatDisplayDate', () => {
 })
 
 describe('formatDateTime', () => {
-  it('includes time in output', () => {
+  it('includes date and time in output', () => {
     const result = formatDateTime('2025-06-15T14:30:00Z')
     expect(result).toContain('Jun')
     expect(result).toContain('15')
+    expect(result).toContain('14:30')
   })
 })
 

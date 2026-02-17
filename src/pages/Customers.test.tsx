@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { screen } from '@testing-library/react'
 import { renderWithProviders } from '../test/testUtils'
 import Customers from './Customers'
+import type { Customer } from '../types'
 
 // Mock the hook module
 vi.mock('../hooks/useCustomerData', () => ({
@@ -17,7 +18,7 @@ describe('Customers', () => {
       data: undefined,
       isLoading: true,
       error: null,
-    } as any)
+    } as ReturnType<typeof useCustomers>)
 
     renderWithProviders(<Customers />)
     expect(screen.getByText('Loading customers...')).toBeInTheDocument()
@@ -28,7 +29,7 @@ describe('Customers', () => {
       data: undefined,
       isLoading: false,
       error: new Error('Network error'),
-    } as any)
+    } as ReturnType<typeof useCustomers>)
 
     renderWithProviders(<Customers />)
     expect(screen.getByText(/Error loading customers/)).toBeInTheDocument()
@@ -36,10 +37,10 @@ describe('Customers', () => {
 
   it('shows empty state when no customers', () => {
     mockUseCustomers.mockReturnValue({
-      data: { items: [], total: 0, page: 1, pageSize: 10, totalPages: 0 },
+      data: { items: [] as Customer[], total: 0, page: 1, pageSize: 10, totalPages: 0 },
       isLoading: false,
       error: null,
-    } as any)
+    } as ReturnType<typeof useCustomers>)
 
     renderWithProviders(<Customers />)
     expect(screen.getByText(/No customers found/)).toBeInTheDocument()
@@ -59,7 +60,7 @@ describe('Customers', () => {
       },
       isLoading: false,
       error: null,
-    } as any)
+    } as ReturnType<typeof useCustomers>)
 
     renderWithProviders(<Customers />)
     expect(screen.getByText('Acme Corp')).toBeInTheDocument()
@@ -77,7 +78,7 @@ describe('Customers', () => {
       },
       isLoading: false,
       error: null,
-    } as any)
+    } as ReturnType<typeof useCustomers>)
 
     renderWithProviders(<Customers />)
     const link = screen.getByText('Test Customer').closest('a')

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { renderWithProviders } from '../test/testUtils'
 import LoginPage from './LoginPage'
 
 const mockLogin = vi.fn()
@@ -20,7 +21,7 @@ describe('LoginPage', () => {
   })
 
   it('renders the login form', () => {
-    render(<LoginPage />)
+    renderWithProviders(<LoginPage />)
     expect(screen.getByText('Argo Energy')).toBeInTheDocument()
     expect(screen.getByLabelText('Password')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Sign In' })).toBeInTheDocument()
@@ -30,7 +31,7 @@ describe('LoginPage', () => {
     mockLogin.mockResolvedValue(undefined)
     const user = userEvent.setup()
 
-    render(<LoginPage />)
+    renderWithProviders(<LoginPage />)
     await user.type(screen.getByLabelText('Password'), 'my-secret')
     await user.click(screen.getByRole('button', { name: 'Sign In' }))
 
@@ -41,7 +42,7 @@ describe('LoginPage', () => {
     mockLogin.mockRejectedValue(new Error('Invalid password'))
     const user = userEvent.setup()
 
-    render(<LoginPage />)
+    renderWithProviders(<LoginPage />)
     await user.type(screen.getByLabelText('Password'), 'wrong')
     await user.click(screen.getByRole('button', { name: 'Sign In' }))
 
@@ -52,7 +53,7 @@ describe('LoginPage', () => {
     mockLogin.mockImplementation(() => new Promise(() => {})) // never resolves
     const user = userEvent.setup()
 
-    render(<LoginPage />)
+    renderWithProviders(<LoginPage />)
     await user.type(screen.getByLabelText('Password'), 'test')
     await user.click(screen.getByRole('button', { name: 'Sign In' }))
 

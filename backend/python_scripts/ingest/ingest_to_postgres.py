@@ -40,7 +40,7 @@ from lib.sentry_client import init_sentry, capture_exception
 from config.report_config import (
     MAX_POWER_KW, VOLTAGE_MIN, VOLTAGE_MAX,
     FREQUENCY_MIN_HZ, FREQUENCY_MAX_HZ, MAX_THD_CURRENT,
-    DEFAULT_API_TIMEOUT, LONG_API_TIMEOUT, DEFAULT_RETRY_ATTEMPTS,
+    DEFAULT_API_TIMEOUT, DEFAULT_RETRY_ATTEMPTS,
 )
 # override=False: .env fills in missing vars but won't clobber env vars
 # already set by the OS / GitHub Actions secrets.
@@ -142,7 +142,7 @@ class EniscopeClient:
         
         return self.cached_organizations
     
-    def _make_request_with_retry(self, url: str, params: Dict = None, retries: int = 3) -> requests.Response:
+    def _make_request_with_retry(self, url: str, params: Dict = None, retries: int = DEFAULT_RETRY_ATTEMPTS) -> requests.Response:
         """Make request with Basic Auth header and exponential backoff.
         
         Use this for endpoints where requests-style param encoding is fine
@@ -172,7 +172,7 @@ class EniscopeClient:
         
         raise Exception(f"Failed after {retries} retries")
     
-    def _make_raw_request_with_retry(self, full_url: str, retries: int = 3) -> requests.Response:
+    def _make_raw_request_with_retry(self, full_url: str, retries: int = DEFAULT_RETRY_ATTEMPTS) -> requests.Response:
         """Make request using a pre-built URL (no param encoding by requests).
         
         The Eniscope /readings endpoint requires bracket-style array params
