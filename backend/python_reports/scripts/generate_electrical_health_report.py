@@ -103,15 +103,19 @@ def _generate_recommendations(data: Dict) -> List[Dict[str, str]]:
 
     # ── Frequency ──
     if freq.get('data_available'):
+        freq_band_low = freq.get('band_low', 59.95)
+        freq_band_high = freq.get('band_high', 60.05)
+        freq_high_exc_th = freq.get('high_excursion_threshold', 20)
+        freq_low_exc_th = freq.get('low_excursion_threshold', 5)
         exc = freq.get('excursion_count', 0)
-        if exc >= 20:
+        if exc >= freq_high_exc_th:
             recs.append({
                 'priority': 'High',
                 'category': 'Frequency',
-                'finding': f"{exc} frequency excursions outside the 59.95-60.05 Hz band detected.",
+                'finding': f"{exc} frequency excursions outside the {freq_band_low:.2f}-{freq_band_high:.2f} Hz band detected.",
                 'action': 'Contact your utility provider  -- excessive frequency variation may indicate grid instability in your service area.',
             })
-        elif exc >= 5:
+        elif exc >= freq_low_exc_th:
             recs.append({
                 'priority': 'Low',
                 'category': 'Frequency',
@@ -133,20 +137,22 @@ def _generate_recommendations(data: Dict) -> List[Dict[str, str]]:
 
     # ── THD ──
     if thd.get('data_available'):
+        thd_limit = thd.get('limit', 5.0)
+        thd_warn_th = thd.get('warning_threshold', thd_limit + 3.0)
         for m in thd.get('meters', []):
-            if m['avg_thd'] >= 8:
+            if m['avg_thd'] >= thd_warn_th:
                 recs.append({
                     'priority': 'High',
                     'category': 'Harmonics',
-                    'finding': f"{m['meter_name']} average current THD is {m['avg_thd']:.1f}% (IEEE 519 limit: 5%).",
+                    'finding': f"{m['meter_name']} average current THD is {m['avg_thd']:.1f}% (above the configured limit of {thd_limit:.1f}%).",
                     'action': 'Schedule a harmonic assessment with a power quality specialist. '
                               'Consider harmonic filters or isolation transformers for non-linear loads.',
                 })
-            elif m['avg_thd'] >= 5:
+            elif m['avg_thd'] >= thd_limit:
                 recs.append({
                     'priority': 'Medium',
                     'category': 'Harmonics',
-                    'finding': f"{m['meter_name']} current THD is {m['avg_thd']:.1f}%, at the IEEE 519 threshold.",
+                    'finding': f"{m['meter_name']} current THD is {m['avg_thd']:.1f}%, near the configured limit of {thd_limit:.1f}%.",
                     'action': 'Monitor trend. If THD rises further, plan harmonic mitigation to prevent equipment overheating.',
                 })
 
@@ -193,7 +199,7 @@ def generate_voltage_chart(voltage_data: Dict, chart_dir: str) -> Optional[str]:
     low = voltage_data.get('low_limit', nominal * 0.95)
     high = voltage_data.get('high_limit', nominal * 1.05)
 
-    fig, ax = plt.subplots(figsize=(10, 4))
+    _, ax = plt.subplots(figsize=(10, 4))
     ax.fill_between(dates, low, high, alpha=0.15, color='green', label=f'Acceptable ({low:.0f}-{high:.0f}V)')
     ax.plot(dates, [t['avg_v'] for t in trend], color='#2563eb', linewidth=2, label='Daily Avg')
     ax.fill_between(dates, [t['min_v'] for t in trend], [t['max_v'] for t in trend],
@@ -217,7 +223,7 @@ def generate_current_chart(current_data: Dict, chart_dir: str) -> Optional[str]:
     dates = _parse_dates(trend)
     peaks = [t['peak_a'] for t in trend]
 
-    fig, ax = plt.subplots(figsize=(10, 4))
+    _, ax = plt.subplots(figsize=(10, 4))
     ax.bar(dates, peaks, color='#f59e0b', alpha=0.8, width=0.8)
     avg_peak = np.mean(peaks)
     ax.axhline(avg_peak, color='#ef4444', linestyle='--', linewidth=1.5, label=f'Period Avg ({avg_peak:.0f}A)')
@@ -242,7 +248,7 @@ def generate_frequency_chart(freq_data: Dict, chart_dir: str) -> Optional[str]:
     band_low = freq_data.get('band_low', 59.95)
     band_high = freq_data.get('band_high', 60.05)
 
-    fig, ax = plt.subplots(figsize=(10, 4))
+    _, ax = plt.subplots(figsize=(10, 4))
     ax.fill_between(dates, band_low, band_high, alpha=0.15, color='green', label=f'Normal ({band_low}-{band_high} Hz)')
     ax.plot(dates, [t['avg_hz'] for t in trend], color='#8b5cf6', linewidth=2, label='Daily Avg')
     ax.fill_between(dates, [t['min_hz'] for t in trend], [t['max_hz'] for t in trend],
@@ -267,7 +273,7 @@ def generate_thd_chart(thd_data: Dict, chart_dir: str) -> Optional[str]:
     dates = _parse_dates(trend)
     limit = thd_data.get('thd_limit_pct', 5.0)
 
-    fig, ax = plt.subplots(figsize=(10, 4))
+    _, ax = plt.subplots(figsize=(10, 4))
     ax.plot(dates, [t['avg_thd'] for t in trend], color='#2563eb', linewidth=2, label='Daily Avg THD')
     ax.plot(dates, [t['max_thd'] for t in trend], color='#ef4444', linewidth=1, linestyle='--',
             alpha=0.6, label='Daily Max THD')
@@ -669,9 +675,10 @@ class ElectricalHealthPDF(FPDF):
 
     def add_thd_section(self, thd: Dict, chart_path: Optional[str]):
         self.add_page()
+        thd_limit_pct = thd.get('thd_limit_pct', 5.0)
         if thd.get('data_available') and thd.get('meters'):
             avg_thd = np.mean([m['avg_thd'] for m in thd['meters']])
-            status = 'Green' if avg_thd < 5 else ('Yellow' if avg_thd < 8 else 'Red')
+            status = 'Green' if avg_thd < thd_limit_pct else ('Yellow' if avg_thd < thd_limit_pct + 3 else 'Red')
         else:
             avg_thd = 0
             status = None
@@ -692,7 +699,7 @@ class ElectricalHealthPDF(FPDF):
             return
 
         meters = thd.get('meters', [])
-        limit = thd.get('thd_limit_pct', 5.0)
+        limit = thd_limit_pct
         worst = max(meters, key=lambda m: m['avg_thd']) if meters else None
         above_count = sum(1 for m in meters if m['avg_thd'] >= limit)
 
@@ -702,19 +709,21 @@ class ElectricalHealthPDF(FPDF):
             self._metric_row('Highest THD:', f"{worst['meter_name']} at {worst['avg_thd']:.1f}% avg")
         self.ln(3)
 
-        if avg_thd < 5:
+        if avg_thd < thd_limit_pct:
             self._write_paragraph(
-                'Conclusion: Harmonic levels are within acceptable limits. No action required.',
+                f'Conclusion: Harmonic levels are within the configured limit of {thd_limit_pct:.0f}%. No action required.',
                 bold=True)
-        elif avg_thd < 8:
+        elif avg_thd < thd_limit_pct + 3:
+            upper_band = thd_limit_pct + 3
             self._write_paragraph(
-                f'Conclusion: Average THD of {avg_thd:.0f}% is at the IEEE 519 threshold. '
-                'Monitor for upward trend. If it rises, plan a harmonic assessment.',
+                f'Conclusion: Average THD of {avg_thd:.0f}% is in the caution band ({thd_limit_pct:.0f}%–{upper_band:.0f}%). '
+                'Monitor for upward trend. If it rises above this range, plan a harmonic assessment.',
                 bold=True)
         else:
+            upper_band = thd_limit_pct + 3
             self._write_paragraph(
-                f'Conclusion: Average THD of {avg_thd:.0f}% exceeds IEEE 519 limits. '
-                'Recommend scheduling a harmonic assessment with a power quality specialist.',
+                f'Conclusion: Average THD of {avg_thd:.0f}% exceeds the configured limit of {thd_limit_pct:.0f}% by more than 3 percentage points '
+                f'(above {upper_band:.0f}%). Recommend scheduling a harmonic assessment with a power quality specialist.',
                 bold=True)
 
         if chart_path and os.path.exists(chart_path):
