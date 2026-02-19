@@ -353,7 +353,9 @@ class ElectricalHealthPDF(FPDF):
             badge_x = self.get_x()
             badge_y = self.get_y()
             self.cell(50, 10, '', 0, 1, 'L', fill=True)  # Fill rest of bar
+            bottom_y = self.get_y()  # save Y below the bar before _traffic_light resets cursor
             self._traffic_light(status, badge_x + 1, badge_y, w=48, h=10)
+            self.set_y(bottom_y)  # restore; _traffic_light called set_xy() inside
         else:
             self.cell(0, 10, f'  {title}', 0, 1, 'L', fill=True)
         self.set_text_color(*ARGO_DARK)
