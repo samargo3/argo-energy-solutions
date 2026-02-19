@@ -1,11 +1,11 @@
 """
-Electrical Health Screening Report  -- PDF Generator
+Electrical Health Screening Report \u2013 PDF Generator
 
 Executive-focused PDF: traffic-light health indicators, plain-language
 summaries, specific actionable recommendations, charts for visual context.
 Detailed per-meter tables moved to appendix.
 
-Following Argo governance: Stage 4 (Deliver  -- Presentation)
+Following Argo governance: Stage 4 (Deliver \u2013 Presentation)
 Charts via matplotlib, PDF assembly via fpdf2.
 """
 
@@ -21,10 +21,11 @@ from fpdf import FPDF
 
 plt.style.use('seaborn-v0_8-darkgrid')
 
-# Argo brand palette
-ARGO_BLUE = (37, 99, 235)
-ARGO_DARK = (31, 41, 55)
-ARGO_GREEN = (16, 185, 129)
+# Argo brand palette (logo-matched)
+ARGO_NAVY = (26, 37, 52)       # Dark navy from "ARGO" logo text
+ARGO_BLUE = (37, 99, 235)      # Kept for chart line colors only
+ARGO_DARK = (31, 41, 55)       # Body text / dark neutral
+ARGO_GREEN = (57, 208, 43)     # Bright lime green from "ENERGY SOLUTIONS" logo text
 ARGO_RED = (239, 68, 68)
 ARGO_AMBER = (245, 158, 11)
 ARGO_GRAY = (107, 114, 128)
@@ -89,7 +90,7 @@ def _generate_recommendations(data: Dict) -> List[Dict[str, str]]:
                 recs.append({
                     'priority': 'High',
                     'category': 'Current',
-                    'finding': f"{m['meter_name']} peak demand is {ratio:.1f}x its average  -- large demand spikes detected.",
+                    'finding': f"{m['meter_name']} peak demand is {ratio:.1f}x its average \u2013 large demand spikes detected.",
                     'action': f"Review scheduling of high-draw equipment on this circuit. Peak event at {m['peak_timestamp'][:16]}. "
                               'Staggering startups can reduce demand charges.',
                 })
@@ -113,7 +114,7 @@ def _generate_recommendations(data: Dict) -> List[Dict[str, str]]:
                 'priority': 'High',
                 'category': 'Frequency',
                 'finding': f"{exc} frequency excursions outside the {freq_band_low:.2f}-{freq_band_high:.2f} Hz band detected.",
-                'action': 'Contact your utility provider  -- excessive frequency variation may indicate grid instability in your service area.',
+                'action': 'Contact your utility provider \u2013 excessive frequency variation may indicate grid instability in your service area.',
             })
         elif exc >= freq_low_exc_th:
             recs.append({
@@ -298,21 +299,31 @@ class ElectricalHealthPDF(FPDF):
     def header(self):
         if self.page_no() == 1:
             return
+        logo_path = os.path.join(os.path.dirname(__file__), '..', 'assets', 'logo.jpg')
+        has_logo = os.path.exists(logo_path)
         self.set_font('Arial', 'B', 10)
-        self.set_text_color(*ARGO_BLUE)
-        self.cell(0, 8, 'Electrical Health Screening', 0, 0, 'L')
-        self.set_font('Arial', '', 8)
-        self.set_text_color(*ARGO_GRAY)
-        self.cell(0, 8, 'Argo Energy Solutions', 0, 1, 'R')
-        self.set_draw_color(*ARGO_BLUE)
+        self.set_text_color(*ARGO_NAVY)
+        # Leave right margin for logo if present, otherwise show text
+        title_w = 170 if has_logo else 0
+        self.cell(title_w, 8, 'Electrical Health Screening', 0, 0, 'L')
+        if not has_logo:
+            self.set_font('Arial', '', 8)
+            self.set_text_color(*ARGO_GRAY)
+            self.cell(0, 8, 'Argo Energy Solutions', 0, 1, 'R')
+        else:
+            self.ln()
+            self.image(logo_path, x=182, y=3, w=18)
+        self.set_draw_color(*ARGO_NAVY)
         self.line(10, self.get_y(), 200, self.get_y())
         self.ln(4)
 
     def footer(self):
         self.set_y(-15)
+        self.set_draw_color(*ARGO_GRAY)
+        self.line(10, self.get_y(), 200, self.get_y())
         self.set_font('Arial', 'I', 8)
         self.set_text_color(*ARGO_GRAY)
-        self.cell(0, 10, 'CONFIDENTIAL', 0, 0, 'L')
+        self.cell(0, 10, 'CONFIDENTIAL \u2013 Argo Energy Solutions', 0, 0, 'L')
         self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'R')
 
     # ── Helpers ───────────────────────────────────────────────────────
@@ -333,13 +344,19 @@ class ElectricalHealthPDF(FPDF):
         self.set_text_color(*ARGO_DARK)
 
     def _section_header(self, title: str, status: Optional[str] = None):
-        self.set_fill_color(*ARGO_BLUE)
+        self.set_fill_color(*ARGO_NAVY)
         self.set_text_color(*WHITE)
         self.set_font('Arial', 'B', 14)
-        self.cell(0, 10, f'  {title}', 0, 1, 'L', fill=True)
-        self.set_text_color(*ARGO_DARK)
         if status:
-            self._traffic_light(status, 155, self.get_y() - 10)
+            # Draw title in left portion, fill right portion, then overlay badge
+            self.cell(140, 10, f'  {title}', 0, 0, 'L', fill=True)
+            badge_x = self.get_x()
+            badge_y = self.get_y()
+            self.cell(50, 10, '', 0, 1, 'L', fill=True)  # Fill rest of bar
+            self._traffic_light(status, badge_x + 1, badge_y, w=48, h=10)
+        else:
+            self.cell(0, 10, f'  {title}', 0, 1, 'L', fill=True)
+        self.set_text_color(*ARGO_DARK)
         self.ln(4)
 
     def _write_paragraph(self, text: str, size: int = 10, bold: bool = False):
@@ -359,16 +376,25 @@ class ElectricalHealthPDF(FPDF):
         self.cell(0, 6, value, 0, 1)
 
     def _metric_table(self, headers: List[str], rows: List[List[str]], col_widths: List[int]):
-        self.set_font('Arial', 'B', 8)
-        self.set_fill_color(*ARGO_LIGHT_GRAY)
-        self.set_text_color(*ARGO_DARK)
+        # Header row: navy fill, white text, 9pt bold
+        self.set_font('Arial', 'B', 9)
+        self.set_fill_color(*ARGO_NAVY)
+        self.set_text_color(*WHITE)
         for i, h in enumerate(headers):
-            self.cell(col_widths[i], 7, h, 1, 0, 'C', fill=True)
+            self.cell(col_widths[i], 8, h, 1, 0, 'C', fill=True)
         self.ln()
-        self.set_font('Arial', '', 8)
-        for row in rows:
+        # Data rows: alternating fill, column 0 left-aligned
+        self.set_font('Arial', '', 9)
+        self.set_text_color(*ARGO_DARK)
+        STRIPE = (230, 234, 242)  # Subtle blue-gray for odd rows
+        for row_idx, row in enumerate(rows):
+            if row_idx % 2 == 0:
+                self.set_fill_color(*WHITE)
+            else:
+                self.set_fill_color(*STRIPE)
             for i, val in enumerate(row):
-                self.cell(col_widths[i], 6, str(val), 1, 0, 'C')
+                align = 'L' if i == 0 else 'C'
+                self.cell(col_widths[i], 7, str(val), 1, 0, align, fill=True)
             self.ln()
         self.ln(3)
 
@@ -380,38 +406,122 @@ class ElectricalHealthPDF(FPDF):
         self.set_text_color(*ARGO_DARK)
         self.ln(2)
 
+    def _divider(self, top_margin: float = 3, bottom_margin: float = 3):
+        """Draw a subtle light-gray horizontal rule between subsections."""
+        self.ln(top_margin)
+        self.set_draw_color(*ARGO_LIGHT_GRAY)
+        self.line(10, self.get_y(), 200, self.get_y())
+        self.ln(bottom_margin)
+
+    def _metric_callout_row(self, label: str, value: str, indent: float = 15):
+        """Draw a highlighted label+value row with a light-gray background box."""
+        row_h = 7
+        box_w = 180
+        self.set_fill_color(*ARGO_LIGHT_GRAY)
+        self.set_draw_color(*ARGO_LIGHT_GRAY)
+        self.rect(indent, self.get_y(), box_w, row_h, 'F')
+        self.set_x(indent + 3)
+        self.set_font('Arial', '', 10)
+        self.set_text_color(*ARGO_GRAY)
+        self.cell(62, row_h, label, 0, 0)
+        self.set_text_color(*ARGO_DARK)
+        self.set_font('Arial', 'B', 10)
+        self.cell(0, row_h, value, 0, 1)
+        self.ln(1)
+
+    def _chart_caption(self, text: str):
+        """Write a small italic caption below a chart image."""
+        if not hasattr(self, '_figure_counter'):
+            self._figure_counter = 0
+        self._figure_counter += 1
+        self.set_font('Arial', 'I', 8)
+        self.set_text_color(*ARGO_GRAY)
+        self.cell(0, 5, f'Figure {self._figure_counter}: {text}', 0, 1, 'C')
+        self.set_text_color(*ARGO_DARK)
+        self.ln(2)
+
+    def _trend_sentence(self, trend: list, value_key: str, lower_is_better: bool = True) -> Optional[str]:
+        """Return a plain-English trend sentence based on first-half vs second-half averages."""
+        if not trend or len(trend) < 4:
+            return None
+        mid = len(trend) // 2
+        first_vals = [t[value_key] for t in trend[:mid] if t.get(value_key) is not None]
+        second_vals = [t[value_key] for t in trend[mid:] if t.get(value_key) is not None]
+        if not first_vals or not second_vals:
+            return None
+        first_avg = sum(first_vals) / len(first_vals)
+        second_avg = sum(second_vals) / len(second_vals)
+        pct_change = abs(second_avg - first_avg) / (first_avg + 1e-9) * 100
+        if pct_change < 5:
+            return 'Readings are stable across the reporting period.'
+        improving = (second_avg < first_avg) if lower_is_better else (second_avg > first_avg)
+        if improving:
+            return 'Trend is improving over the reporting period \u2013 conditions are getting better.'
+        else:
+            return 'Trend is worsening over the reporting period \u2013 this warrants attention.'
+
     # ── Cover Page ────────────────────────────────────────────────────
 
     def add_cover_page(self, site_name: str, start_date: str, end_date: str):
         self.add_page()
-        self.set_fill_color(*ARGO_BLUE)
+
+        # Primary navy header band
+        self.set_fill_color(*ARGO_NAVY)
         self.rect(0, 0, 210, 80, 'F')
 
-        self.set_y(20)
+        # Secondary accent band (slightly lighter) just below header
+        self.set_fill_color(44, 52, 68)
+        self.rect(0, 80, 210, 8, 'F')
+
+        # Title text in header band
+        self.set_y(18)
         self.set_font('Arial', 'B', 28)
         self.set_text_color(*WHITE)
         self.cell(0, 14, 'Electrical Health', 0, 1, 'C')
         self.cell(0, 14, 'Screening', 0, 1, 'C')
-        self.set_font('Arial', '', 14)
-        self.cell(0, 10, 'Monthly Power Quality Assessment', 0, 1, 'C')
+        self.set_font('Arial', '', 13)
+        self.cell(0, 9, 'Monthly Power Quality Assessment', 0, 1, 'C')
 
-        self.set_y(95)
+        # Logo centered below header band
+        logo_path = os.path.join(os.path.dirname(__file__), '..', 'assets', 'logo.jpg')
+        if os.path.exists(logo_path):
+            self.image(logo_path, x=70, y=94, w=70)
+            content_y = 175
+        else:
+            # Fallback: text branding block
+            self.set_y(100)
+            self.set_text_color(*ARGO_DARK)
+            self.set_font('Arial', 'B', 18)
+            self.cell(0, 10, 'Argo Energy Solutions', 0, 1, 'C')
+            content_y = 125
+
+        # Format dates for display
+        try:
+            dt_start = datetime.strptime(start_date, '%Y-%m-%d')
+            dt_end = datetime.strptime(end_date, '%Y-%m-%d')
+            fmt_start = dt_start.strftime('%B %-d, %Y')
+            fmt_end = dt_end.strftime('%B %-d, %Y')
+            period_str = f'{fmt_start} \u2013 {fmt_end}'
+        except ValueError:
+            period_str = f'{start_date} \u2013 {end_date}'
+
+        # Report metadata block
+        self.set_y(content_y)
         self.set_text_color(*ARGO_DARK)
-        self.set_font('Arial', 'B', 16)
-        self.cell(0, 10, 'Argo Energy Solutions', 0, 1, 'C')
-        self.ln(15)
-
         self.set_font('Arial', '', 13)
         self.cell(0, 10, f'Prepared for: {site_name}', 0, 1, 'C')
-        self.cell(0, 10, f'Report Period: {start_date} to {end_date}', 0, 1, 'C')
-        self.cell(0, 10, f'Generated: {datetime.now().strftime("%B %d, %Y")}', 0, 1, 'C')
+        self.cell(0, 10, f'Report Period: {period_str}', 0, 1, 'C')
+        self.cell(0, 10, f'Generated: {datetime.now().strftime("%B %-d, %Y")}', 0, 1, 'C')
 
-        self.set_fill_color(*ARGO_BLUE)
-        self.rect(0, 270, 210, 27, 'F')
-        self.set_y(275)
-        self.set_font('Arial', 'I', 9)
+        # Footer band: two lines
+        self.set_fill_color(*ARGO_NAVY)
+        self.rect(0, 265, 210, 32, 'F')
+        self.set_y(270)
+        self.set_font('Arial', 'B', 10)
         self.set_text_color(*WHITE)
-        self.cell(0, 8, 'Facilities | Electrical | Monthly Report', 0, 1, 'C')
+        self.cell(0, 8, 'Argo Energy Solutions', 0, 1, 'C')
+        self.set_font('Arial', 'I', 9)
+        self.cell(0, 7, 'Facilities | Electrical | Monthly Report', 0, 1, 'C')
 
     # ── Executive Summary ─────────────────────────────────────────────
 
@@ -424,16 +534,30 @@ class ElectricalHealthPDF(FPDF):
 
         self._section_header('Executive Summary')
 
-        # Large centered badge
+        # Large centered traffic-light badge
         badge_w = 60
         badge_x = (210 - badge_w) / 2
         self._traffic_light(tl, badge_x, self.get_y(), w=badge_w, h=22)
         self.ln(28)
 
-        self.set_font('Arial', '', 11)
+        # Score callout box: centered bordered rectangle
+        score_box_w = 90
+        score_box_h = 18
+        score_box_x = (210 - score_box_w) / 2
+        score_box_y = self.get_y()
+        self.set_draw_color(*ARGO_NAVY)
+        self.set_fill_color(*ARGO_LIGHT_GRAY)
+        self.rect(score_box_x, score_box_y, score_box_w, score_box_h, 'FD')
+        self.set_xy(score_box_x, score_box_y + 2)
+        self.set_font('Arial', '', 9)
+        self.set_text_color(*ARGO_GRAY)
+        self.cell(score_box_w, 5, 'Overall Electrical Health Score', 0, 1, 'C')
+        self.set_x(score_box_x)
+        self.set_font('Arial', 'B', 16)
+        self.set_text_color(*ARGO_NAVY)
+        self.cell(score_box_w, 9, f'{numeric} / 100', 0, 1, 'C')
         self.set_text_color(*ARGO_DARK)
-        self.cell(0, 7, f'Overall Electrical Health Score: {numeric}/100', 0, 1, 'C')
-        self.ln(4)
+        self.ln(6)
 
         # Category status rows
         self.set_font('Arial', 'B', 11)
@@ -477,13 +601,14 @@ class ElectricalHealthPDF(FPDF):
             colors = {'Green': TL_GREEN, 'Yellow': TL_YELLOW, 'Red': TL_RED}
             color = colors.get(cat_status, ARGO_GRAY)
             self.set_fill_color(*color)
-            self.ellipse(15, y + 1.5, 4, 4, 'F')
-            self.set_x(22)
+            # 8x6mm solid square badge (replaces tiny 4mm circle)
+            self.rect(15, y + 0.5, 8, 6, 'F')
+            self.set_x(26)
             self.set_font('Arial', 'B', 10)
-            self.cell(50, 6, cat_name, 0, 0)
-            self.set_font('Arial', '', 10)
             self.set_text_color(*ARGO_DARK)
-            self.cell(0, 6, cat_summary, 0, 1)
+            self.cell(50, 7, cat_name, 0, 0)
+            self.set_font('Arial', '', 10)
+            self.cell(0, 7, cat_summary, 0, 1)
             self.ln(1)
 
         # Top recommendations preview
@@ -520,7 +645,7 @@ class ElectricalHealthPDF(FPDF):
         if len(recommendations) > 3:
             self.set_font('Arial', 'I', 9)
             self.set_text_color(*ARGO_GRAY)
-            self.cell(0, 5, f'+ {len(recommendations) - 3} more  -- see Recommended Actions page', 0, 1)
+            self.cell(0, 5, f'+ {len(recommendations) - 3} more \u2013 see Recommended Actions page', 0, 1)
             self.set_text_color(*ARGO_DARK)
 
     # ── Section Pages (summary + chart, no inline tables) ────────────
@@ -542,8 +667,9 @@ class ElectricalHealthPDF(FPDF):
 
         self._write_paragraph(
             f'This section assesses whether facility voltage stays within the acceptable '
-            f'range of {low:.0f}V to {high:.0f}V (nominal {nominal}V +/-5%). Voltage outside '
-            f'this band can damage equipment, reduce efficiency, and shorten motor life.'
+            f'range of {low:.0f}V to {high:.0f}V (nominal {nominal}V \u00b15%). '
+            f'Voltage sags can cause motors to stall, computers to restart, and sensitive '
+            f'equipment to malfunction. Swells can damage insulation and shorten equipment life.'
         )
 
         if meters:
@@ -555,8 +681,14 @@ class ElectricalHealthPDF(FPDF):
             self._metric_row('Voltage Sag Events:', str(total_sags))
             self._metric_row('Voltage Swell Events:', str(total_swells))
             if avg_outside >= 2:
-                self._metric_row('Most Affected:', f"{worst['meter_name']} ({worst['pct_outside_band']:.1f}% outside)")
-            self.ln(3)
+                self._metric_callout_row('Most Affected:', f"{worst['meter_name']} ({worst['pct_outside_band']:.1f}% outside tolerance)")
+
+            # Trend direction
+            trend_sent = self._trend_sentence(voltage.get('daily_trend', []), 'avg_v', lower_is_better=False)
+            if trend_sent:
+                self._write_paragraph(trend_sent, size=9)
+
+            self._divider(top_margin=2, bottom_margin=2)
 
             if avg_outside < 2:
                 self._write_paragraph(
@@ -576,6 +708,7 @@ class ElectricalHealthPDF(FPDF):
         if chart_path and os.path.exists(chart_path):
             self.ln(2)
             self.image(chart_path, x=10, w=190)
+            self._chart_caption('Daily voltage trend for the reporting period')
 
     def add_current_section(self, current: Dict, chart_path: Optional[str]):
         self.add_page()
@@ -590,9 +723,9 @@ class ElectricalHealthPDF(FPDF):
         self._section_header('Peak Current & Demand', status)
 
         self._write_paragraph(
-            'This section identifies demand spikes  -- moments when electrical draw surges well above '
+            'This section identifies demand spikes \u2013 moments when electrical draw surges well above '
             'the average. High peak-to-average ratios increase demand charges on your utility bill '
-            'and can stress electrical infrastructure.'
+            '(fees based on your highest draw, not total usage) and can stress electrical infrastructure.'
         )
 
         if meters:
@@ -602,9 +735,21 @@ class ElectricalHealthPDF(FPDF):
 
             self._metric_row('Highest Peak:', f"{site_peak:.0f}A ({peak_meter['meter_name']})")
             self._metric_row('Site Avg Current:', f'{site_avg:.1f}A')
-            self._metric_row('Peak/Avg Ratio:', f'{avg_ratio:.1f}x')
+            self._metric_callout_row('Peak/Avg Ratio:', f'{avg_ratio:.1f}x')
             self._metric_row('Peak Event Time:', peak_meter['peak_timestamp'][:16])
-            self.ln(3)
+
+            if avg_ratio >= 3:
+                self._write_paragraph(
+                    'A ratio above 3x indicates demand spikes that utilities typically charge '
+                    'as demand fees \u2013 billed on your single highest draw, not overall consumption.',
+                    size=9)
+
+            # Trend direction
+            trend_sent = self._trend_sentence(current.get('daily_peak_trend', []), 'peak_a', lower_is_better=True)
+            if trend_sent:
+                self._write_paragraph(trend_sent, size=9)
+
+            self._divider(top_margin=2, bottom_margin=2)
 
             if avg_ratio < 3:
                 self._write_paragraph(
@@ -614,7 +759,7 @@ class ElectricalHealthPDF(FPDF):
             elif avg_ratio < 5:
                 self._write_paragraph(
                     f'Conclusion: Moderate demand spikes detected (peak/avg {avg_ratio:.1f}x). '
-                    'Review equipment startup schedules  -- staggering high-draw startups can reduce demand charges.',
+                    'Review equipment startup schedules \u2013 staggering high-draw startups can reduce demand charges.',
                     bold=True)
             else:
                 self._write_paragraph(
@@ -626,6 +771,7 @@ class ElectricalHealthPDF(FPDF):
         if chart_path and os.path.exists(chart_path):
             self.ln(2)
             self.image(chart_path, x=10, w=190)
+            self._chart_caption('Daily peak current for the reporting period')
 
     def add_frequency_section(self, freq: Dict, chart_path: Optional[str]):
         self.add_page()
@@ -637,9 +783,9 @@ class ElectricalHealthPDF(FPDF):
         self._section_header('Grid Frequency', status)
 
         self._write_paragraph(
-            'Grid frequency should hold steady at 60.00 Hz. Deviations outside 59.95-60.05 Hz '
-            'can indicate grid instability. This metric is informational  -- frequency is controlled '
-            'by the utility, not within the facility.'
+            'Grid frequency should hold steady at 60.00 Hz. Deviations outside 59.95\u201360.05 Hz '
+            'can indicate grid instability. This metric is informational \u2013 frequency is controlled '
+            'by the utility, not the facility. Persistent excursions should be reported to your utility provider.'
         )
 
         if not freq.get('data_available'):
@@ -650,9 +796,15 @@ class ElectricalHealthPDF(FPDF):
             return
 
         self._metric_row('Average Frequency:', f"{freq['avg_frequency']} Hz")
-        self._metric_row('Range:', f"{freq['min_frequency']}-{freq['max_frequency']} Hz")
-        self._metric_row('Excursions:', f"{freq['excursion_count']} ({freq['excursion_pct']}% of readings)")
-        self.ln(3)
+        self._metric_row('Range:', f"{freq['min_frequency']}\u2013{freq['max_frequency']} Hz")
+        self._metric_callout_row('Excursions Outside Band:', f"{freq['excursion_count']} events ({freq['excursion_pct']}% of readings)")
+
+        # Trend direction
+        trend_sent = self._trend_sentence(freq.get('daily_trend', []), 'avg_hz', lower_is_better=False)
+        if trend_sent:
+            self._write_paragraph(trend_sent, size=9)
+
+        self._divider(top_margin=2, bottom_margin=2)
 
         if freq['excursion_count'] < 5:
             self._write_paragraph(
@@ -665,13 +817,14 @@ class ElectricalHealthPDF(FPDF):
                 bold=True)
         else:
             self._write_paragraph(
-                f"Conclusion: {freq['excursion_count']} frequency excursions detected  -- above typical levels. "
+                f"Conclusion: {freq['excursion_count']} frequency excursions detected \u2013 above typical levels. "
                 'Consider contacting your utility provider about grid stability.',
                 bold=True)
 
         if chart_path and os.path.exists(chart_path):
             self.ln(2)
             self.image(chart_path, x=10, w=190)
+            self._chart_caption('Daily grid frequency for the reporting period')
 
     def add_thd_section(self, thd: Dict, chart_path: Optional[str]):
         self.add_page()
@@ -687,8 +840,8 @@ class ElectricalHealthPDF(FPDF):
         self._write_paragraph(
             'Harmonic distortion measures how "clean" the electrical current waveform is. '
             'High distortion (above the IEEE 519 standard of 5%) can overheat transformers, '
-            'trip breakers, and reduce equipment lifespan. Common sources include VFDs, LED '
-            'drivers, and computer power supplies.'
+            'trip breakers, and void equipment warranties. Common sources include variable '
+            'frequency drives (VFDs), LED drivers, and computer power supplies.'
         )
 
         if not thd.get('data_available'):
@@ -703,11 +856,28 @@ class ElectricalHealthPDF(FPDF):
         worst = max(meters, key=lambda m: m['avg_thd']) if meters else None
         above_count = sum(1 for m in meters if m['avg_thd'] >= limit)
 
-        self._metric_row('IEEE 519 Limit:', f'{limit}%')
+        self._metric_row('IEEE 519 Limit:', f'{limit:.0f}%')
         self._metric_row('Meters Above Limit:', f'{above_count} of {len(meters)}')
         if worst:
-            self._metric_row('Highest THD:', f"{worst['meter_name']} at {worst['avg_thd']:.1f}% avg")
-        self.ln(3)
+            self._metric_callout_row('Highest THD Meter:', f"{worst['meter_name']} \u2013 {worst['avg_thd']:.1f}% avg")
+
+        # IEEE 519 compliance status line
+        if avg_thd < thd_limit_pct:
+            self.set_font('Arial', 'B', 10)
+            self.set_text_color(*TL_GREEN)
+            self.cell(0, 6, f'  All circuits are within IEEE 519 compliance ({thd_limit_pct:.0f}% limit).', 0, 1)
+        else:
+            self.set_font('Arial', 'B', 10)
+            self.set_text_color(*TL_RED)
+            self.cell(0, 6, f'  One or more circuits exceed the IEEE 519 limit ({thd_limit_pct:.0f}%). See Recommendations.', 0, 1)
+        self.set_text_color(*ARGO_DARK)
+
+        # Trend direction
+        trend_sent = self._trend_sentence(thd.get('daily_trend', []), 'avg_thd', lower_is_better=True)
+        if trend_sent:
+            self._write_paragraph(trend_sent, size=9)
+
+        self._divider(top_margin=2, bottom_margin=2)
 
         if avg_thd < thd_limit_pct:
             self._write_paragraph(
@@ -716,7 +886,7 @@ class ElectricalHealthPDF(FPDF):
         elif avg_thd < thd_limit_pct + 3:
             upper_band = thd_limit_pct + 3
             self._write_paragraph(
-                f'Conclusion: Average THD of {avg_thd:.0f}% is in the caution band ({thd_limit_pct:.0f}%–{upper_band:.0f}%). '
+                f'Conclusion: Average THD of {avg_thd:.0f}% is in the caution band ({thd_limit_pct:.0f}%\u2013{upper_band:.0f}%). '
                 'Monitor for upward trend. If it rises above this range, plan a harmonic assessment.',
                 bold=True)
         else:
@@ -729,6 +899,7 @@ class ElectricalHealthPDF(FPDF):
         if chart_path and os.path.exists(chart_path):
             self.ln(2)
             self.image(chart_path, x=10, w=190)
+            self._chart_caption('Daily current harmonic distortion (THD) for the reporting period')
 
     # ── Recommended Actions Page ──────────────────────────────────────
 
@@ -749,31 +920,47 @@ class ElectricalHealthPDF(FPDF):
                 self.add_page()
 
             y = self.get_y()
-            # Number + priority badge
+
+            # Left accent border line in priority color
+            self.set_draw_color(*pc)
+            self.set_line_width(1.2)
+            self.line(10, y, 10, y + 26)
+            self.set_line_width(0.2)
+            self.set_draw_color(*ARGO_GRAY)
+
+            # Number (indented from border)
+            self.set_x(14)
             self.set_font('Arial', 'B', 10)
             self.set_text_color(*ARGO_DARK)
-            self.cell(8, 6, f'{i}.', 0, 0)
+            self.cell(8, 7, f'{i}.', 0, 0)
+
+            # Larger priority badge (22x7mm, 8pt)
             self.set_fill_color(*pc)
             self.set_text_color(*WHITE)
-            self.set_font('Arial', 'B', 7)
+            self.set_font('Arial', 'B', 8)
             bx = self.get_x()
-            self.rect(bx, y, 16, 5, 'F')
-            self.cell(16, 5, rec['priority'].upper(), 0, 0, 'C')
+            self.rect(bx, y, 22, 7, 'F')
+            self.set_xy(bx, y)
+            self.cell(22, 7, rec['priority'].upper(), 0, 0, 'C')
+
+            # Category label
             self.set_text_color(*ARGO_DARK)
             self.set_font('Arial', 'B', 9)
-            self.cell(3, 5, '', 0, 0)
-            self.cell(0, 5, rec['category'], 0, 1)
+            self.cell(3, 7, '', 0, 0)
+            self.cell(0, 7, rec['category'], 0, 1)
+
             # Finding
-            self.set_x(23)
+            self.set_x(36)
             self.set_font('Arial', '', 9)
-            self.multi_cell(170, 5, rec['finding'])
+            self.multi_cell(162, 5, rec['finding'])
+
             # Action
-            self.set_x(23)
+            self.set_x(36)
             self.set_font('Arial', 'I', 9)
-            self.set_text_color(*ARGO_BLUE)
-            self.multi_cell(170, 5, f"Action: {rec['action']}")
+            self.set_text_color(*ARGO_NAVY)
+            self.multi_cell(162, 5, f"Action: {rec['action']}")
             self.set_text_color(*ARGO_DARK)
-            self.ln(3)
+            self.ln(5)
 
     # ── Appendix: Detailed Data ───────────────────────────────────────
 
@@ -818,7 +1005,7 @@ class ElectricalHealthPDF(FPDF):
             rows = []
             for m in meters:
                 name = m['meter_name'][:22] if len(m['meter_name']) > 22 else m['meter_name']
-                ratio = f"{m['peak_current_a'] / m['avg_current_a']:.1f}x" if m['avg_current_a'] > 0 else '--'
+                ratio = f"{m['peak_current_a'] / m['avg_current_a']:.1f}x" if m['avg_current_a'] > 0 else '\u2013'
                 ts = m['peak_timestamp'][:16] if len(m['peak_timestamp']) > 16 else m['peak_timestamp']
                 rows.append([name, str(m['peak_current_a']), str(m['avg_current_a']), ratio, ts])
             self._metric_table(headers, rows, [38, 22, 22, 18, 52])
@@ -845,6 +1032,12 @@ class ElectricalHealthPDF(FPDF):
                 self.add_page()
             self.set_font('Arial', 'B', 10)
             self.cell(0, 7, 'Neutral Current Detail', 0, 1)
+            self.set_font('Arial', 'I', 8)
+            self.set_text_color(*ARGO_GRAY)
+            self.multi_cell(0, 5,
+                'Elevated neutral current indicates phase imbalance or harmonic distortion \u2013 '
+                'both of which create heat in wiring and reduce capacity for additional loads.')
+            self.set_text_color(*ARGO_DARK)
             self.ln(1)
             headers = ['Meter', 'Avg (A)', 'Max (A)', 'Elevated Events']
             rows = []
@@ -877,7 +1070,7 @@ class ElectricalHealthPDF(FPDF):
 class ElectricalHealthReportGenerator:
     """Orchestrates data fetching, chart generation, and PDF assembly.
 
-    Stage 4 (Deliver)  -- calls Stage 3 (Analyze) functions,
+    Stage 4 (Deliver) \u2013 calls Stage 3 (Analyze) functions,
     formats output into an executive-focused PDF.
     """
 

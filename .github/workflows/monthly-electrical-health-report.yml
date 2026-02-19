@@ -1,0 +1,151 @@
+name: Monthly Electrical Health Report
+
+on:
+  schedule:
+    # Run on the 1st of every month at 8 AM UTC (3 AM EST / 2 AM EDT)
+    - cron: '0 8 1 * *'
+  workflow_dispatch:
+    inputs:
+      site_id:
+        description: 'Specific site ID (leave blank for all active sites)'
+        required: false
+        default: ''
+      start_date:
+        description: 'Report start date YYYY-MM-DD (default: first day of last month)'
+        required: false
+        default: ''
+      end_date:
+        description: 'Report end date YYYY-MM-DD (default: last day of last month)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  generate-report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/python_scripts/requirements.txt
+          pip install -r backend/python_reports/requirements.txt
+
+      - name: Install backend package
+        run: pip install -e backend/python_scripts/
+
+      - name: Compute report period
+        id: period
+        env:
+          INPUT_START_DATE: ${{ inputs.start_date }}
+          INPUT_END_DATE: ${{ inputs.end_date }}
+        run: |
+          python - <<'EOF'
+          import os
+          from datetime import date, timedelta
+
+          start = os.getenv('INPUT_START_DATE', '').strip()
+          end   = os.getenv('INPUT_END_DATE',   '').strip()
+
+          if bool(start) != bool(end):          # exactly one provided
+              missing = 'end_date' if start else 'start_date'
+              print(f"Error: {missing} must also be provided when specifying the other date.")
+              raise SystemExit(1)
+
+          if not start:                          # neither provided — default to last full month
+              today            = date.today()
+              first_this_month = today.replace(day=1)
+              last_month_end   = first_this_month - timedelta(days=1)
+              last_month_start = last_month_end.replace(day=1)
+              start = str(last_month_start)
+              end   = str(last_month_end)
+
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as fh:
+              fh.write(f'start_date={start}\n')
+              fh.write(f'end_date={end}\n')
+
+          print(f"Report period: {start} to {end}")
+          EOF
+
+      - name: Discover active sites
+        id: sites
+        if: ${{ !inputs.site_id }}
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          SITE_LIST=$(python backend/python_scripts/operations/list_active_sites.py) || {
+            echo "::error::Site discovery script exited with an error"
+            exit 1
+          }
+          TRIMMED=$(echo "$SITE_LIST" | grep -v '^[[:space:]]*$' || true)
+          if [ -z "$TRIMMED" ]; then
+            echo "::error::No active sites found — report generation skipped"
+            exit 1
+          fi
+          echo "site_list<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$TRIMMED" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+          echo "Discovered active sites: $TRIMMED"
+
+      - name: Generate reports for each site
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          SITE_IDS="${{ inputs.site_id }}"
+          if [ -z "$SITE_IDS" ]; then
+            SITE_IDS="${{ steps.sites.outputs.site_list }}"
+          fi
+
+          START_DATE="${{ steps.period.outputs.start_date }}"
+          END_DATE="${{ steps.period.outputs.end_date }}"
+
+          FAILED=0
+          while IFS= read -r SITE_ID; do
+            [ -z "$SITE_ID" ] && continue
+            echo ""
+            echo "=== Generating Electrical Health Report for site $SITE_ID ==="
+            echo "    Period: $START_DATE to $END_DATE"
+            python backend/python_scripts/deliver/generate_electrical_health_report.py \
+              --site "$SITE_ID" \
+              --start-date "$START_DATE" \
+              --end-date   "$END_DATE" \
+              || { echo "Report for site $SITE_ID FAILED"; FAILED=1; }
+          done <<< "$SITE_IDS"
+
+          if [ $FAILED -ne 0 ]; then exit 1; fi
+
+      - name: Upload PDF artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: electrical-health-reports-${{ steps.period.outputs.start_date }}-${{ github.run_number }}
+          path: reports/electrical-health-*.pdf
+          retention-days: 90
+
+      - name: Create issue on failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const period = '${{ steps.period.outputs.start_date }}' + ' – ' + '${{ steps.period.outputs.end_date }}';
+            const runUrl = `${context.payload.repository.html_url}/actions/runs/${context.runId}`;
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Electrical Health Report Failed — ${new Date().toISOString().slice(0,10)}`,
+              body: `The monthly electrical health report workflow failed.\n\n**Period:** ${period}\n**Run:** [View logs](${runUrl})\n**Time:** ${new Date().toISOString()}\n\nPlease check the workflow logs and re-run manually if needed.`,
+              labels: ['pipeline-failure', 'automated']
+            })
