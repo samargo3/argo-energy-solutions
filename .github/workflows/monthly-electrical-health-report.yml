@@ -20,6 +20,7 @@ on:
         default: ''
 
 permissions:
+  contents: read
   issues: write
 
 jobs:
@@ -59,7 +60,12 @@ jobs:
           start = os.getenv('INPUT_START_DATE', '').strip()
           end   = os.getenv('INPUT_END_DATE',   '').strip()
 
-          if not start or not end:
+          if bool(start) != bool(end):          # exactly one provided
+              missing = 'end_date' if start else 'start_date'
+              print(f"Error: {missing} must also be provided when specifying the other date.")
+              raise SystemExit(1)
+
+          if not start:                          # neither provided — default to last full month
               today            = date.today()
               first_this_month = today.replace(day=1)
               last_month_end   = first_this_month - timedelta(days=1)
