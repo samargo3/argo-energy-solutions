@@ -235,6 +235,7 @@ Create these labels for organization:
 | `enhancement` | Blue | New feature or improvement |
 | `data-quality` | Yellow | Data validation issues |
 | `automated` | Gray | Created by automation |
+| `pipeline-failure` | Red | Automated pipeline / workflow failure |
 | `documentation` | Green | Documentation updates |
 | `urgent` | Orange | Requires immediate attention |
 

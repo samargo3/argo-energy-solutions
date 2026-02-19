@@ -86,11 +86,19 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
-          SITE_LIST=$(python backend/python_scripts/operations/list_active_sites.py)
+          SITE_LIST=$(python backend/python_scripts/operations/list_active_sites.py) || {
+            echo "::error::Site discovery script exited with an error"
+            exit 1
+          }
+          TRIMMED=$(echo "$SITE_LIST" | grep -v '^[[:space:]]*$' || true)
+          if [ -z "$TRIMMED" ]; then
+            echo "::error::No active sites found — report generation skipped"
+            exit 1
+          fi
           echo "site_list<<EOF" >> "$GITHUB_OUTPUT"
-          echo "$SITE_LIST" >> "$GITHUB_OUTPUT"
+          echo "$TRIMMED" >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
-          echo "Discovered active sites: $SITE_LIST"
+          echo "Discovered active sites: $TRIMMED"
 
       - name: Generate reports for each site
         env:
