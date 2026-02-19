@@ -1,11 +1,11 @@
 """
-Electrical Health Screening Report \u2013 PDF Generator
+Electrical Health Screening Report - PDF Generator
 
 Executive-focused PDF: traffic-light health indicators, plain-language
 summaries, specific actionable recommendations, charts for visual context.
 Detailed per-meter tables moved to appendix.
 
-Following Argo governance: Stage 4 (Deliver \u2013 Presentation)
+Following Argo governance: Stage 4 (Deliver - Presentation)
 Charts via matplotlib, PDF assembly via fpdf2.
 """
 
@@ -90,7 +90,7 @@ def _generate_recommendations(data: Dict) -> List[Dict[str, str]]:
                 recs.append({
                     'priority': 'High',
                     'category': 'Current',
-                    'finding': f"{m['meter_name']} peak demand is {ratio:.1f}x its average \u2013 large demand spikes detected.",
+                    'finding': f"{m['meter_name']} peak demand is {ratio:.1f}x its average - large demand spikes detected.",
                     'action': f"Review scheduling of high-draw equipment on this circuit. Peak event at {m['peak_timestamp'][:16]}. "
                               'Staggering startups can reduce demand charges.',
                 })
@@ -114,7 +114,7 @@ def _generate_recommendations(data: Dict) -> List[Dict[str, str]]:
                 'priority': 'High',
                 'category': 'Frequency',
                 'finding': f"{exc} frequency excursions outside the {freq_band_low:.2f}-{freq_band_high:.2f} Hz band detected.",
-                'action': 'Contact your utility provider \u2013 excessive frequency variation may indicate grid instability in your service area.',
+                'action': 'Contact your utility provider - excessive frequency variation may indicate grid instability in your service area.',
             })
         elif exc >= freq_low_exc_th:
             recs.append({
@@ -323,7 +323,7 @@ class ElectricalHealthPDF(FPDF):
         self.line(10, self.get_y(), 200, self.get_y())
         self.set_font('Arial', 'I', 8)
         self.set_text_color(*ARGO_GRAY)
-        self.cell(0, 10, 'CONFIDENTIAL \u2013 Argo Energy Solutions', 0, 0, 'L')
+        self.cell(0, 10, 'CONFIDENTIAL - Argo Energy Solutions', 0, 0, 'L')
         self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'R')
 
     # ── Helpers ───────────────────────────────────────────────────────
@@ -456,9 +456,9 @@ class ElectricalHealthPDF(FPDF):
             return 'Readings are stable across the reporting period.'
         improving = (second_avg < first_avg) if lower_is_better else (second_avg > first_avg)
         if improving:
-            return 'Trend is improving over the reporting period \u2013 conditions are getting better.'
+            return 'Trend is improving over the reporting period - conditions are getting better.'
         else:
-            return 'Trend is worsening over the reporting period \u2013 this warrants attention.'
+            return 'Trend is worsening over the reporting period - this warrants attention.'
 
     # ── Cover Page ────────────────────────────────────────────────────
 
@@ -501,9 +501,9 @@ class ElectricalHealthPDF(FPDF):
             dt_end = datetime.strptime(end_date, '%Y-%m-%d')
             fmt_start = dt_start.strftime('%B %-d, %Y')
             fmt_end = dt_end.strftime('%B %-d, %Y')
-            period_str = f'{fmt_start} \u2013 {fmt_end}'
+            period_str = f'{fmt_start} - {fmt_end}'
         except ValueError:
-            period_str = f'{start_date} \u2013 {end_date}'
+            period_str = f'{start_date} - {end_date}'
 
         # Report metadata block
         self.set_y(content_y)
@@ -645,7 +645,7 @@ class ElectricalHealthPDF(FPDF):
         if len(recommendations) > 3:
             self.set_font('Arial', 'I', 9)
             self.set_text_color(*ARGO_GRAY)
-            self.cell(0, 5, f'+ {len(recommendations) - 3} more \u2013 see Recommended Actions page', 0, 1)
+            self.cell(0, 5, f'+ {len(recommendations) - 3} more - see Recommended Actions page', 0, 1)
             self.set_text_color(*ARGO_DARK)
 
     # ── Section Pages (summary + chart, no inline tables) ────────────
@@ -723,7 +723,7 @@ class ElectricalHealthPDF(FPDF):
         self._section_header('Peak Current & Demand', status)
 
         self._write_paragraph(
-            'This section identifies demand spikes \u2013 moments when electrical draw surges well above '
+            'This section identifies demand spikes - moments when electrical draw surges well above '
             'the average. High peak-to-average ratios increase demand charges on your utility bill '
             '(fees based on your highest draw, not total usage) and can stress electrical infrastructure.'
         )
@@ -741,7 +741,7 @@ class ElectricalHealthPDF(FPDF):
             if avg_ratio >= 3:
                 self._write_paragraph(
                     'A ratio above 3x indicates demand spikes that utilities typically charge '
-                    'as demand fees \u2013 billed on your single highest draw, not overall consumption.',
+                    'as demand fees - billed on your single highest draw, not overall consumption.',
                     size=9)
 
             # Trend direction
@@ -759,7 +759,7 @@ class ElectricalHealthPDF(FPDF):
             elif avg_ratio < 5:
                 self._write_paragraph(
                     f'Conclusion: Moderate demand spikes detected (peak/avg {avg_ratio:.1f}x). '
-                    'Review equipment startup schedules \u2013 staggering high-draw startups can reduce demand charges.',
+                    'Review equipment startup schedules - staggering high-draw startups can reduce demand charges.',
                     bold=True)
             else:
                 self._write_paragraph(
@@ -783,8 +783,8 @@ class ElectricalHealthPDF(FPDF):
         self._section_header('Grid Frequency', status)
 
         self._write_paragraph(
-            'Grid frequency should hold steady at 60.00 Hz. Deviations outside 59.95\u201360.05 Hz '
-            'can indicate grid instability. This metric is informational \u2013 frequency is controlled '
+            'Grid frequency should hold steady at 60.00 Hz. Deviations outside 59.95-60.05 Hz '
+            'can indicate grid instability. This metric is informational - frequency is controlled '
             'by the utility, not the facility. Persistent excursions should be reported to your utility provider.'
         )
 
@@ -796,7 +796,7 @@ class ElectricalHealthPDF(FPDF):
             return
 
         self._metric_row('Average Frequency:', f"{freq['avg_frequency']} Hz")
-        self._metric_row('Range:', f"{freq['min_frequency']}\u2013{freq['max_frequency']} Hz")
+        self._metric_row('Range:', f"{freq['min_frequency']}-{freq['max_frequency']} Hz")
         self._metric_callout_row('Excursions Outside Band:', f"{freq['excursion_count']} events ({freq['excursion_pct']}% of readings)")
 
         # Trend direction
@@ -817,7 +817,7 @@ class ElectricalHealthPDF(FPDF):
                 bold=True)
         else:
             self._write_paragraph(
-                f"Conclusion: {freq['excursion_count']} frequency excursions detected \u2013 above typical levels. "
+                f"Conclusion: {freq['excursion_count']} frequency excursions detected - above typical levels. "
                 'Consider contacting your utility provider about grid stability.',
                 bold=True)
 
@@ -859,7 +859,7 @@ class ElectricalHealthPDF(FPDF):
         self._metric_row('IEEE 519 Limit:', f'{limit:.0f}%')
         self._metric_row('Meters Above Limit:', f'{above_count} of {len(meters)}')
         if worst:
-            self._metric_callout_row('Highest THD Meter:', f"{worst['meter_name']} \u2013 {worst['avg_thd']:.1f}% avg")
+            self._metric_callout_row('Highest THD Meter:', f"{worst['meter_name']} - {worst['avg_thd']:.1f}% avg")
 
         # IEEE 519 compliance status line
         if avg_thd < thd_limit_pct:
@@ -886,7 +886,7 @@ class ElectricalHealthPDF(FPDF):
         elif avg_thd < thd_limit_pct + 3:
             upper_band = thd_limit_pct + 3
             self._write_paragraph(
-                f'Conclusion: Average THD of {avg_thd:.0f}% is in the caution band ({thd_limit_pct:.0f}%\u2013{upper_band:.0f}%). '
+                f'Conclusion: Average THD of {avg_thd:.0f}% is in the caution band ({thd_limit_pct:.0f}%-{upper_band:.0f}%). '
                 'Monitor for upward trend. If it rises above this range, plan a harmonic assessment.',
                 bold=True)
         else:
@@ -1005,7 +1005,7 @@ class ElectricalHealthPDF(FPDF):
             rows = []
             for m in meters:
                 name = m['meter_name'][:22] if len(m['meter_name']) > 22 else m['meter_name']
-                ratio = f"{m['peak_current_a'] / m['avg_current_a']:.1f}x" if m['avg_current_a'] > 0 else '\u2013'
+                ratio = f"{m['peak_current_a'] / m['avg_current_a']:.1f}x" if m['avg_current_a'] > 0 else '-'
                 ts = m['peak_timestamp'][:16] if len(m['peak_timestamp']) > 16 else m['peak_timestamp']
                 rows.append([name, str(m['peak_current_a']), str(m['avg_current_a']), ratio, ts])
             self._metric_table(headers, rows, [38, 22, 22, 18, 52])
@@ -1035,7 +1035,7 @@ class ElectricalHealthPDF(FPDF):
             self.set_font('Arial', 'I', 8)
             self.set_text_color(*ARGO_GRAY)
             self.multi_cell(0, 5,
-                'Elevated neutral current indicates phase imbalance or harmonic distortion \u2013 '
+                'Elevated neutral current indicates phase imbalance or harmonic distortion - '
                 'both of which create heat in wiring and reduce capacity for additional loads.')
             self.set_text_color(*ARGO_DARK)
             self.ln(1)
@@ -1070,7 +1070,7 @@ class ElectricalHealthPDF(FPDF):
 class ElectricalHealthReportGenerator:
     """Orchestrates data fetching, chart generation, and PDF assembly.
 
-    Stage 4 (Deliver) \u2013 calls Stage 3 (Analyze) functions,
+    Stage 4 (Deliver) - calls Stage 3 (Analyze) functions,
     formats output into an executive-focused PDF.
     """
 
