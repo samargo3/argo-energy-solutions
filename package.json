@@ -55,6 +55,7 @@
     "db:migrate:sites": "source venv/bin/activate && python backend/python_scripts/govern/create_sites_table.py",
     "db:migrate:electrical-health": "source venv/bin/activate && python backend/python_scripts/govern/add_electrical_health_columns.py",
     "py:report:electrical-health": "source venv/bin/activate && python backend/python_scripts/deliver/generate_electrical_health_report.py --site",
+    "py:report:asset-health": "source venv/bin/activate && python backend/python_scripts/deliver/generate_asset_health_report.py --site",
     "py:sites": "source venv/bin/activate && python backend/python_scripts/operations/list_active_sites.py",
     "py:sites:json": "source venv/bin/activate && python backend/python_scripts/operations/list_active_sites.py --json",
     "db:check-schema": "source venv/bin/activate && python -c \"import psycopg2, os; from dotenv import load_dotenv; load_dotenv(); conn = psycopg2.connect(os.getenv('DATABASE_URL')); cur = conn.cursor(); cur.execute('SELECT table_name, column_name, data_type FROM information_schema.columns WHERE table_schema = \\'public\\' AND column_name LIKE \\'%time%\\' ORDER BY table_name, column_name'); print('\\n🔍 Timestamp Columns:\\n'); [print(f\\\"  {row[0]:20} {row[1]:25} {row[2]}\\\") for row in cur.fetchall()]; cur.close(); conn.close()\"",
