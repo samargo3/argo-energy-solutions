@@ -1,0 +1,135 @@
+name: Monthly Asset Health Report
+
+on:
+  schedule:
+    # Run on the 1st of every month at 8 AM UTC (3 AM EST / 2 AM EDT)
+    - cron: '0 8 1 * *'
+  workflow_dispatch:
+    inputs:
+      site_id:
+        description: 'Site ID (default: 23271 — Westchester Country Day School)'
+        required: false
+        default: '23271'
+      start_date:
+        description: 'Report start date YYYY-MM-DD (default: first day of last month)'
+        required: false
+        default: ''
+      end_date:
+        description: 'Report end date YYYY-MM-DD (default: last day of last month)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  generate-report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/python_scripts/requirements.txt
+          pip install -r backend/python_reports/requirements.txt
+
+      - name: Install backend package
+        run: pip install -e backend/python_scripts/
+
+      - name: Compute report period
+        id: period
+        env:
+          INPUT_START_DATE: ${{ inputs.start_date }}
+          INPUT_END_DATE: ${{ inputs.end_date }}
+        run: |
+          python - <<'EOF'
+          import os
+          from datetime import date, timedelta
+
+          start = os.getenv('INPUT_START_DATE', '').strip()
+          end   = os.getenv('INPUT_END_DATE',   '').strip()
+
+          if bool(start) != bool(end):
+              missing = 'end_date' if start else 'start_date'
+              print(f"Error: {missing} must also be provided when specifying the other date.")
+              raise SystemExit(1)
+
+          if not start:                          # default: last full calendar month
+              today            = date.today()
+              first_this_month = today.replace(day=1)
+              last_month_end   = first_this_month - timedelta(days=1)
+              last_month_start = last_month_end.replace(day=1)
+              start = str(last_month_start)
+              end   = str(last_month_end)
+
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as fh:
+              fh.write(f'start_date={start}\n')
+              fh.write(f'end_date={end}\n')
+
+          print(f"Report period: {start} to {end}")
+          EOF
+
+      - name: Resolve site ID
+        id: site
+        run: |
+          SITE_ID="${{ inputs.site_id }}"
+          if [ -z "$SITE_ID" ]; then
+            SITE_ID="23271"
+          fi
+          echo "site_id=$SITE_ID" >> "$GITHUB_OUTPUT"
+          echo "Generating report for site: $SITE_ID"
+
+      - name: Generate Asset Health & Use Report
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          echo "=== Generating Asset Health & Use Assessment ==="
+          echo "    Site:   ${{ steps.site.outputs.site_id }}"
+          echo "    Period: ${{ steps.period.outputs.start_date }} to ${{ steps.period.outputs.end_date }}"
+          python backend/python_scripts/deliver/generate_asset_health_report.py \
+            --site  "${{ steps.site.outputs.site_id }}" \
+            --start "${{ steps.period.outputs.start_date }}" \
+            --end   "${{ steps.period.outputs.end_date }}"
+
+      - name: Upload PDF artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: asset-health-report-${{ steps.period.outputs.start_date }}-${{ github.run_number }}
+          path: reports/asset-health-*.pdf
+          retention-days: 90
+
+      - name: Create issue on failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const period = '${{ steps.period.outputs.start_date }}' + ' – ' + '${{ steps.period.outputs.end_date }}';
+            const runUrl = `${context.payload.repository.html_url}/actions/runs/${context.runId}`;
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Asset Health Report Failed — ${new Date().toISOString().slice(0,10)}`,
+              body: [
+                'The monthly asset health report workflow failed.',
+                '',
+                `**Period:** ${period}`,
+                `**Site:** ${{ steps.site.outputs.site_id }}`,
+                `**Run:** [View logs](${runUrl})`,
+                `**Time:** ${new Date().toISOString()}`,
+                '',
+                'Please check the workflow logs and re-run manually if needed.',
+              ].join('\n'),
+              labels: ['pipeline-failure', 'automated']
+            })
