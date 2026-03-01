@@ -14,7 +14,7 @@ Charts via matplotlib, PDF assembly via fpdf2.
 import os
 import sys
 import tempfile
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -136,6 +136,13 @@ def fetch_asset_data(
         )
         meters = cur.fetchall()
 
+        # Compute exclusive upper bound so the full end_date is included.
+        # Casting a bare YYYY-MM-DD string to a timestamp coerces to midnight,
+        # which silently drops all readings timestamped later that day.
+        end_exclusive = (
+            datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1)
+        ).strftime('%Y-%m-%d')
+
         assets = []
         for meter_id, meter_name in meters:
             cur.execute(
@@ -146,10 +153,10 @@ def fetch_asset_data(
                 FROM   v_readings_enriched
                 WHERE  meter_id  = %s
                   AND  timestamp >= %s
-                  AND  timestamp <= %s
+                  AND  timestamp  < %s
                 ORDER BY timestamp
                 """,
-                (str(meter_id), start_date, end_date)
+                (str(meter_id), start_date, end_exclusive)
             )
             readings = [
                 {
@@ -267,6 +274,12 @@ def assign_health_status(metrics_list: List[Dict]) -> List[Dict]:
     rank_map      = {m['meter_id']: i for i, m in enumerate(sorted_by_kwh)}
 
     for m in metrics_list:
+        # Assets with no readings in the period are not consumers — always Green
+        if m['total_kwh'] == 0:
+            m['health_status'] = 'Green'
+            m['status_note']   = _build_status_note(m)
+            continue
+
         rank   = rank_map[m['meter_id']]   # 0-indexed
         ah_pct = m['after_hours_pct']
 
@@ -282,7 +295,8 @@ def assign_health_status(metrics_list: List[Dict]) -> List[Dict]:
     return metrics_list
 
 
-def _generate_recommendations(metrics_list: List[Dict], period_days: int) -> List[str]:
+def _generate_recommendations(metrics_list: List[Dict], period_days: int,
+                              rate: float = WCDS_RATE_PER_KWH) -> List[str]:
     """Generate 3-5 plain-language action items for facilities managers.
 
     Ordered by impact: after-hours offenders → top consumer →
@@ -300,7 +314,7 @@ def _generate_recommendations(metrics_list: List[Dict], period_days: int) -> Lis
     )
     if ah_assets:
         worst = ah_assets[0]
-        savings_est = worst['after_hours_kwh'] * WCDS_RATE_PER_KWH
+        savings_est = worst['after_hours_kwh'] * rate
         recs.append(
             f"Review the scheduling timer on {worst['asset_name']}: "
             f"{worst['after_hours_pct']:.0f}% of its energy ran outside school hours "
@@ -593,6 +607,7 @@ class AssetHealthPDF(FPDF):
         top_asset:  str,
         start_date: str,
         end_date:   str,
+        rate:       float = WCDS_RATE_PER_KWH,
     ):
         """Page 2: three side-by-side headline metric callout boxes."""
         self.add_page()
@@ -615,7 +630,7 @@ class AssetHealthPDF(FPDF):
 
         box_configs = [
             ('Total Facility kWh', f'{total_kwh:,.0f} kWh',     'Monitored assets, period total'),
-            ('Total Period Cost',  f'${total_cost:,.2f}',        f'At ${WCDS_RATE_PER_KWH}/kWh'),
+            ('Total Period Cost',  f'${total_cost:,.2f}',        f'At ${rate}/kWh'),
             ('Top Consumer',       top_asset,                    'Highest energy-use asset'),
         ]
 
@@ -804,7 +819,8 @@ class AssetHealthPDF(FPDF):
 
     # ── Financial Summary ─────────────────────────────────────────────────────
 
-    def add_financial_summary(self, metrics_list: List[Dict], period_days: int):
+    def add_financial_summary(self, metrics_list: List[Dict], period_days: int,
+                              rate: float = WCDS_RATE_PER_KWH):
         """Financial Impact Summary page."""
         self.add_page()
         self._section_header('Financial Impact Summary')
@@ -826,7 +842,7 @@ class AssetHealthPDF(FPDF):
         ah_kwh_flagged = sum(
             m['after_hours_kwh'] for m in metrics_list if m['after_hours_flag']
         )
-        savings_est = ah_kwh_flagged * WCDS_RATE_PER_KWH
+        savings_est = ah_kwh_flagged * rate
 
         self._metric_callout_row('Period Total (kWh):',     f'{period_kwh:,.0f} kWh')
         self._metric_callout_row('Period Total Cost:',      f'${period_cost:,.2f}')
@@ -846,7 +862,7 @@ class AssetHealthPDF(FPDF):
 
         self.ln(4)
         self._write_paragraph(
-            f'Note: cost estimates use a flat rate of ${WCDS_RATE_PER_KWH}/kWh. '
+            f'Note: cost estimates use a flat rate of ${rate}/kWh. '
             f'Actual utility invoices may include demand charges, taxes, and other fees '
             f'not reflected here.',
             size=9,
@@ -958,7 +974,7 @@ class AssetHealthReportGenerator:
             )
 
             # 5. Plain-language recommendations
-            recommendations = _generate_recommendations(metrics, period_days)
+            recommendations = _generate_recommendations(metrics, period_days, self.rate)
 
             # 6. Ranking chart
             chart_path = generate_ranking_chart(metrics, chart_dir)
@@ -971,10 +987,11 @@ class AssetHealthReportGenerator:
             pdf.add_executive_overview(
                 total_kwh, total_cost, top_asset,
                 self.start_date, self.end_date,
+                rate=self.rate,
             )
             pdf.add_ranking_chart_page(chart_path)
             pdf.add_asset_detail_section(metrics)
-            pdf.add_financial_summary(metrics, period_days)
+            pdf.add_financial_summary(metrics, period_days, rate=self.rate)
             pdf.add_recommendations_page(recommendations)
 
             # 8. Save
