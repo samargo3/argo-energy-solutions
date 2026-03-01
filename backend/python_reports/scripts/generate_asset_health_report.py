@@ -1,5 +1,5 @@
 """
-Asset Health & Use Assessment Report — PDF Generator
+Asset Health & Use Assessment Report -PDF Generator
 
 Non-technical, impact-focused PDF for Westchester Country Day School
 facilities and operations managers.
@@ -7,7 +7,7 @@ facilities and operations managers.
 Answers the question: which pieces of equipment are consuming the most
 energy, what is it costing, and what should we do about it?
 
-Following Argo governance: Stage 4 (Deliver — Presentation)
+Following Argo governance: Stage 4 (Deliver -Presentation)
 Charts via matplotlib, PDF assembly via fpdf2.
 """
 
@@ -49,7 +49,7 @@ TL_YELLOW = (234, 179,   8)
 TL_RED    = (220,  38,  38)
 
 # ── WCDS-specific constants ───────────────────────────────────────────────────
-WCDS_RATE_PER_KWH = 0.115   # $0.115/kWh — client-specified
+WCDS_RATE_PER_KWH = 0.115   # $0.115/kWh -client-specified
 WCDS_CHANNEL_IDS  = [
     162119, 162120, 162121, 162122,
     162123, 162285, 162319, 162320,
@@ -63,8 +63,8 @@ ASSET_NAME_MAP = {
     'AHU-1A': 'Air Handler 1A',
     'AHU-1B': 'Air Handler 1B',
     'AHU-2':  'Air Handler 2',
-    'CDPK':   'Kitchen — Main Panel',
-    'CDKH':   'Kitchen — Secondary Panel',
+    'CDPK':   'Kitchen - Main Panel',
+    'CDKH':   'Kitchen - Secondary Panel',
 }
 
 _ET = pytz.timezone('America/New_York')
@@ -126,7 +126,7 @@ def fetch_asset_data(
         row = cur.fetchone()
         site_name = row[0] if row else f'Site {site_id}'
 
-        # Meter roster — filtered to the known WCDS channel IDs
+        # Meter roster -filtered to the known WCDS channel IDs
         placeholders = ','.join(['%s'] * len(channel_ids))
         cur.execute(
             f"SELECT meter_id, meter_name FROM v_meters "
@@ -214,7 +214,7 @@ def compute_asset_metrics(asset: Dict, rate: float, config: Dict) -> Dict:
     days_spanned  = max(1, (max(timestamps) - min(timestamps)).days + 1)
     avg_daily_kwh = total_kwh / days_spanned
 
-    # After-hours classification — convert to ET before checking schedule
+    # After-hours classification -convert to ET before checking schedule
     after_hours_kwh = 0.0
     for r in readings:
         ts_et = _to_et(r['ts']) if isinstance(r['ts'], datetime) else r['ts']
@@ -245,7 +245,7 @@ def _build_status_note(m: Dict) -> str:
         if m['after_hours_pct'] > 20.0:
             return (
                 f"Running {m['after_hours_pct']:.0f}% of its energy after school hours "
-                f"— review scheduling."
+                f" - review scheduling."
             )
         return (
             f"Highest-consumption asset this period at "
@@ -257,7 +257,7 @@ def _build_status_note(m: Dict) -> str:
                 f"Some after-hours activity detected "
                 f"({m['after_hours_pct']:.0f}% of energy use)."
             )
-        return "Mid-range consumer — no immediate concerns."
+        return "Mid-range consumer - no immediate concerns."
     else:
         return "Operating efficiently within expected parameters."
 
@@ -266,15 +266,15 @@ def assign_health_status(metrics_list: List[Dict]) -> List[Dict]:
     """Assign Red/Yellow/Green status after all assets are ranked by kWh.
 
     Rules (after-hours override takes precedence):
-      RED    — top-2 kWh consumers, OR after_hours_pct > 20%
-      YELLOW — ranks 3-5, OR 5% < after_hours_pct <= 20%
-      GREEN  — ranks 6+, AND after_hours_pct <= 5%
+      RED    -top-2 kWh consumers, OR after_hours_pct > 20%
+      YELLOW -ranks 3-5, OR 5% < after_hours_pct <= 20%
+      GREEN  -ranks 6+, AND after_hours_pct <= 5%
     """
     sorted_by_kwh = sorted(metrics_list, key=lambda m: m['total_kwh'], reverse=True)
     rank_map      = {m['meter_id']: i for i, m in enumerate(sorted_by_kwh)}
 
     for m in metrics_list:
-        # Assets with no readings in the period are not consumers — always Green
+        # Assets with no readings in the period are not consumers -always Green
         if m['total_kwh'] == 0:
             m['health_status'] = 'Green'
             m['status_note']   = _build_status_note(m)
@@ -355,7 +355,7 @@ def _generate_recommendations(metrics_list: List[Dict], period_days: int,
     if green_count >= 4:
         recs.append(
             f"{green_count} of {len(metrics_list)} assets are operating "
-            f"efficiently within expected parameters — no immediate action needed on those units."
+            f"efficiently within expected parameters - no immediate action needed on those units."
         )
 
     return recs[:5]
@@ -403,7 +403,7 @@ def generate_ranking_chart(metrics_list: List[Dict], chart_dir: str) -> str:
         )
 
     ax.set_xlabel('Energy Use (kWh)', fontsize=10)
-    ax.set_title('Asset Energy Ranking — Reporting Period', fontsize=12,
+    ax.set_title('Asset Energy Ranking -Reporting Period', fontsize=12,
                  fontweight='bold', color='#1a2534')
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
@@ -576,9 +576,9 @@ class AssetHealthPDF(FPDF):
             dt_end    = datetime.strptime(end_date,   '%Y-%m-%d')
             fmt_start = dt_start.strftime('%B %-d, %Y')
             fmt_end   = dt_end.strftime('%B %-d, %Y')
-            period_str = f'{fmt_start} — {fmt_end}'
+            period_str = f'{fmt_start} - {fmt_end}'
         except ValueError:
-            period_str = f'{start_date} — {end_date}'
+            period_str = f'{start_date} - {end_date}'
 
         # Metadata block
         self.set_y(content_y)
@@ -616,7 +616,7 @@ class AssetHealthPDF(FPDF):
         self._write_paragraph(
             'This report summarises energy use and estimated costs for all monitored equipment '
             'at this facility over the reporting period. Assets are evaluated by total consumption, '
-            'after-hours activity, and peak demand — and given a plain-language health status '
+            'after-hours activity, and peak demand - and given a plain-language health status '
             '(Good / Monitor / Action Needed) to help prioritise facilities decisions.'
         )
         self.ln(2)
@@ -671,9 +671,9 @@ class AssetHealthPDF(FPDF):
             dt_end    = datetime.strptime(end_date,   '%Y-%m-%d')
             fmt_start = dt_start.strftime('%B %-d')
             fmt_end   = dt_end.strftime('%B %-d, %Y')
-            period_str = f'{fmt_start} — {fmt_end}'
+            period_str = f'{fmt_start} - {fmt_end}'
         except ValueError:
-            period_str = f'{start_date} — {end_date}'
+            period_str = f'{start_date} - {end_date}'
 
         self.set_font('Arial', 'I', 9)
         self.set_text_color(*ARGO_GRAY)
@@ -698,12 +698,12 @@ class AssetHealthPDF(FPDF):
 
         if os.path.exists(chart_path):
             self.image(chart_path, x=10, w=190)
-            self._chart_caption('Assets ranked by total energy consumption — reporting period')
+            self._chart_caption('Assets ranked by total energy consumption - reporting period')
 
     # ── Asset Detail Cards ────────────────────────────────────────────────────
 
     def add_asset_detail_section(self, metrics_list: List[Dict]):
-        """One card per asset — two cards per A4 page."""
+        """One card per asset -two cards per A4 page."""
         self.add_page()
         self._section_header('Asset Detail')
 
@@ -798,13 +798,13 @@ class AssetHealthPDF(FPDF):
                 self.set_text_color(*ARGO_AMBER)
                 ah_text = (
                     f"After-hours: {m['after_hours_pct']:.0f}% of energy "
-                    f"({m['after_hours_kwh']:.0f} kWh) — outside school hours"
+                    f"({m['after_hours_kwh']:.0f} kWh) - outside school hours"
                 )
                 self.set_font('Arial', 'I', 9)
             else:
                 self.set_text_color(*ARGO_GRAY)
                 ah_pct_str = f'{m["after_hours_pct"]:.0f}%' if m['after_hours_pct'] > 0 else 'none'
-                ah_text = f'After-hours activity: {ah_pct_str} — within normal range'
+                ah_text = f'After-hours activity: {ah_pct_str} - within normal range'
             self.cell(0, 5, ah_text, 0, 1)
 
             # ── Row 5: Status note ──
@@ -877,7 +877,7 @@ class AssetHealthPDF(FPDF):
 
         self._write_paragraph(
             'The following actions are prioritised based on this period\'s findings. '
-            'Items are ordered by potential impact — the first item typically represents '
+            'Items are ordered by potential impact - the first item typically represents '
             'the largest single opportunity for cost reduction.'
         )
 
