@@ -50,8 +50,25 @@ def main():
     args = parser.parse_args()
 
     # Default: last 4 complete weeks (28 days ending yesterday)
-    end_date   = args.end   or (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
-    start_date = args.start or (datetime.now() - timedelta(days=28)).strftime('%Y-%m-%d')
+    end_date_str   = args.end   or (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
+    start_date_str = args.start or (datetime.now() - timedelta(days=28)).strftime('%Y-%m-%d')
+
+    # Validate date format and order before connecting to the database
+    try:
+        start_parsed = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+        end_parsed   = datetime.strptime(end_date_str,   '%Y-%m-%d').date()
+    except ValueError as exc:
+        print(f"Error: invalid date — {exc}. Dates must be in YYYY-MM-DD format.")
+        sys.exit(1)
+
+    if start_parsed > end_parsed:
+        print(
+            f"Error: --start ({start_date_str}) must not be after --end ({end_date_str})."
+        )
+        sys.exit(1)
+
+    start_date = str(start_parsed)
+    end_date   = str(end_parsed)
 
     db_url = os.getenv('DATABASE_URL')
     if not db_url:
@@ -64,6 +81,7 @@ def main():
     print(f"  Output: {args.output}")
     print()
 
+    conn = None
     try:
         conn = psycopg2.connect(db_url)
 
@@ -77,8 +95,6 @@ def main():
             output_dir=args.output,
         )
         pdf_path = generator.generate()
-
-        conn.close()
         print(f"\nPDF saved to: {pdf_path}")
 
     except Exception as e:
@@ -86,6 +102,9 @@ def main():
         import traceback
         traceback.print_exc()
         sys.exit(1)
+    finally:
+        if conn is not None:
+            conn.close()
 
 
 if __name__ == '__main__':

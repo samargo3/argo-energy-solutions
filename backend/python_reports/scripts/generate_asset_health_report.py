@@ -288,6 +288,9 @@ def _generate_recommendations(metrics_list: List[Dict], period_days: int) -> Lis
     Ordered by impact: after-hours offenders → top consumer →
     peak-power note → annual cost projection → positive note.
     """
+    if not metrics_list:
+        return ["No asset data available for this period; verify data ingestion and try again."]
+
     recs: List[str] = []
 
     # After-hours offenders
@@ -979,8 +982,8 @@ class AssetHealthReportGenerator:
                 f"asset-health-{self.site_id}-"
                 f"{self.start_date}-to-{self.end_date}.pdf"
             )
-            out_path = os.path.join(self.output_dir, fname)
-            os.makedirs(self.output_dir, exist_ok=True)
+            out_path = os.path.abspath(os.path.join(self.output_dir, fname))
+            os.makedirs(os.path.dirname(out_path), exist_ok=True)
             pdf.output(out_path)
 
         print(f"Report generated: {out_path}")
