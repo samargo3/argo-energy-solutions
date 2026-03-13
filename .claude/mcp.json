@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "neon": {
+      "command": "bash",
+      "args": [".claude/scripts/start-postgres-mcp.sh"]
+    }
+  }
+}

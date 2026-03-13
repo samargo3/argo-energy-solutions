@@ -57,7 +57,11 @@ historical_ingestion.log
 .idea
 .cursor/
 .agents/
-.claude/
+# Allow .claude config (no secrets — DATABASE_URL stays in .env)
+.claude/*
+!.claude/mcp.json
+!.claude/scripts/
+!.claude/scripts/**
 .DS_Store
 *.suo
 *.ntvs*
